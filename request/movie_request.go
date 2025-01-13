@@ -2,7 +2,9 @@ package request
 
 type MovieRequest struct {
 	Title  string  `json:"title" validate:"required"`
-	Genre  string  `json:"genre"`
-	Year   int     `json:"year" validate:"required"`
-	Rating float64 `json:"rating" validate:"min=0,max=5"`
+	Genre  string  `json:"genre" validate:"required"`
+	Year   int     `json:"year"`
+	Rating float64 `json:"rating" validate:"required,gte=1,lte=5"`
+	// CreatedAt *time.Time `json:"created_at"`
+	// UpdatedAt *time.Time `json:"updated_at"`
 }

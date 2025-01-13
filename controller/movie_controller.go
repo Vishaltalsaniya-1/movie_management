@@ -2,12 +2,15 @@ package controller
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"movie_management/managers"
 	"movie_management/request"
+	"movie_management/response"
 	"net/http"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 )
 
@@ -18,36 +21,65 @@ func InitDB(database *sql.DB) {
 }
 
 func CreateMovie(c echo.Context) error {
-	var movieReq request.MovieRequest
-	if err := c.Bind(&movieReq); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	var req request.MovieRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
 	}
-	log.Println("Req---------> done")
-	movieResponse, err := managers.CreateMovie(db, movieReq)
-	if err != nil {
+	if req.Title == "" || req.Genre == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Title and Genre are required"})
+	}
+	if req.Year == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Year is required"})
+	}
+	if req.Rating == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Rating must be between 1 and 5"})
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(req); err != nil {
+		log.Println("Validation error:", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, movieResponse)
+	createdMovie, err := managers.CreateMovie(db, req)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, createdMovie)
 }
 
 func UpdateMovie(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
 	}
 
-	var movieReq request.MovieRequest
-	if err := c.Bind(&movieReq); err != nil {
+	db, ok := c.Get("db").(*sql.DB)
+	if !ok || db == nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database connection is not available"})
+	}
+
+	var req request.MovieRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 
-	movieResponse, err := managers.UpdateMovie(db, id, movieReq)
+	updatedMovie, err := managers.UpdateMovie(db, id, &req)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
+		}
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, movieResponse)
+	return c.JSON(http.StatusOK, updatedMovie)
 }
 
 func DeleteMovie(c echo.Context) error {
@@ -55,7 +87,6 @@ func DeleteMovie(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
 	}
-
 	err = managers.DeleteMovie(db, id)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -65,37 +96,82 @@ func DeleteMovie(c echo.Context) error {
 }
 
 func ListMovies(c echo.Context) error {
-    title := c.QueryParam("title")
-    genre := c.QueryParam("genre")
-    year, _ := strconv.Atoi(c.QueryParam("year"))
-    
-	limit, err := strconv.Atoi(c.QueryParam("limit"))
-    if err != nil || limit <= 0 {
-        limit = 10 
-    }
-    offset, err := strconv.Atoi(c.QueryParam("offset"))
-    if err != nil || offset < 0 {
-        offset = 0 
-    }
+	pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
+	pageSize, _ := strconv.Atoi(c.QueryParam("page_size"))
+	orderBy := c.QueryParam("order_by")
+	order := c.QueryParam("order")
+	genre := c.QueryParam("genre")
+	year := c.QueryParam("year")
+	title := c.QueryParam("title")
 
-    sort := c.QueryParam("sort")
-    log.Println("list_movies------------>")
+	if pageNo <= 0 {
+		pageNo = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	if order == "" {
+		order = "asc"
+	}
 
-    movieListResponse, err := managers.ListMovies(db, genre, title, year, limit, offset, sort)
-    if err != nil {
-        return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-    }
+	filters := map[string]interface{}{}
+	if genre != "" {
+		filters["genre"] = genre
+	}
+	if year != "" {
+		yearInt, err := strconv.Atoi(year)
+		if err == nil {
+			filters["year"] = yearInt
+		}
+	}
+	if title != "" {
+		filters["title"] = title
+	}
 
-    return c.JSON(http.StatusOK, movieListResponse)
+	movies, total, err := managers.ListMovies(db, filters, pageSize, pageNo, orderBy, order)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
+	}
+
+	totalPages := (total + pageSize - 1) / pageSize
+	response := response.PaginatedMoviesResponse{
+		Movies:      movies,
+		CurrentPage: pageNo,
+		TotalPages:  totalPages,
+		TotalCount:  total,
+		LastPage:    totalPages,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 
-func GetAnalytics(c echo.Context) error {
+func GetMovieAnalytics(c echo.Context) error {
+	analyticsType := c.QueryParam("type")
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 
-	analyticsResponse, err := managers.GetAnalytics(db)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+	if analyticsType == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Analytics type is required"})
 	}
 
-	return c.JSON(http.StatusOK, analyticsResponse)
+	data, err := managers.GetMovieAnalytics(c.Get("db").(*sql.DB), analyticsType, limit)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch analytics"})
+	}
+
+	return c.JSON(http.StatusOK, data)
+}
+
+func GetMoviesById(c echo.Context) error {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid ID"})
+	}
+
+	movie, err := managers.GetMoviesById(db, id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "movie not found"})
+	}
+
+	return c.JSON(http.StatusOK, movie)
 }

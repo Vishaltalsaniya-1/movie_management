@@ -8,40 +8,44 @@ import (
 	"movie_management/request"
 	"movie_management/response"
 	"movie_management/service"
-
-	"time"
 )
 
-func CreateMovie(db *sql.DB, movieRequest request.MovieRequest) (*response.MovieResponse, error) {
-	if movieRequest.Title == "" {
-		return nil, fmt.Errorf("title is required")
+func CreateMovie(db *sql.DB, req request.MovieRequest) (*response.MovieResponse, error) {
+
+	movie := models.Movie{
+		Title:  req.Title,
+		Genre:  req.Genre,
+		Year:   req.Year,
+		Rating: req.Rating,
+		// CreatedAt: req.CreatedAt,
+		// UpdatedAt: req.UpdatedAt,
 	}
-	if movieRequest.Year < 1900 || movieRequest.Year > time.Now().Year() {
-		return nil, fmt.Errorf("year must be between 1900 and the current year")
-	}
-	log.Println("managers req ------->")
-	newMovie, err := service.CreateMovie(db, &movieRequest)
+
+	log.Println("Manager: Creating movie...")
+
+	createdMovie, err := service.CreateMovie(db, &movie)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create movie: %v", err)
 	}
 
-	return mapToMovieResponse(newMovie), nil
+	return createdMovie, nil
 }
 
-func UpdateMovie(db *sql.DB, id int, movieRequest request.MovieRequest) (*response.MovieResponse, error) {
-	if movieRequest.Title == "" {
-		return nil, fmt.Errorf("title is required")
-	}
-	if movieRequest.Year < 1900 || movieRequest.Year > time.Now().Year() {
-		return nil, fmt.Errorf("year must be between 1900 and the current year")
+func UpdateMovie(db *sql.DB, id int, req *request.MovieRequest) (response.MovieResponse, error) {
+	movie := &models.Movie{
+		Title:  req.Title,
+		Genre:  req.Genre,
+		Year:   req.Year,
+		Rating: req.Rating,
+		//UpdatedAt: &time.Time{},
 	}
 
-	updatedMovie, err := service.UpdateMovie(db, id, &movieRequest)
+	updatedMovie, err := service.UpdateMovie(db, movie, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update movie: %v", err)
+		return response.MovieResponse{}, fmt.Errorf("failed to update movie: %v", err)
 	}
 
-	return mapToMovieResponse(updatedMovie), nil
+	return updatedMovie, nil
 }
 
 func DeleteMovie(db *sql.DB, id int) error {
@@ -53,50 +57,63 @@ func DeleteMovie(db *sql.DB, id int) error {
 	return nil
 }
 
-func ListMovies(db *sql.DB, genre, title string, year,  limit, offset int, sort string) (*response.MovieListResponse, error) {
-    log.Println("list_managers---------->")
+func ListMovies(db *sql.DB, filters map[string]interface{}, pageSize, pageNo int, orderBy, order string) ([]response.MovieResponse, int, error) {
+	genre := ""
+	if val, ok := filters["genre"]; ok {
+		genre = val.(string)
+	}
 
-    movies, err := service.ListMovies(db, genre, year, title,  limit, offset, sort)
-    if err != nil {
-        return nil, fmt.Errorf("failed to retrieve movies: %v", err)
-    }
+	year := 0
+	if val, ok := filters["year"]; ok {
+		year = val.(int)
+	}
 
-    total := len(movies)  
-    var movieResponses []response.MovieResponse
-    for _, movie := range movies {
-        movieResponses = append(movieResponses, *mapToMovieResponse(&movie))
-    }
+	title := ""
+	if val, ok := filters["title"]; ok {
+		title = val.(string)
+	}
 
-    return &response.MovieListResponse{
-        Movies: movieResponses,
-        Total:  total,
-    }, nil
-}
-
-
-func GetAnalytics(db *sql.DB) (*response.AnalyticsResponse, error) {
-
-	analytics, err := service.GetAnalytics(db)
+	movies, total, err := service.ListMovies(db, genre, title, year, pageSize, pageNo, orderBy, order)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve analytics: %v", err)
+		return nil, 0, fmt.Errorf("failed to retrieve movies: %v", err)
 	}
 
-	return mapToAnalyticsResponse(analytics), nil
+	return movies, total, nil
 }
 
-func mapToMovieResponse(movie *models.Movie) *response.MovieResponse {
-	return &response.MovieResponse{
-		ID:     movie.ID,
-		Title:  movie.Title,
-		Genre:  movie.Genre,
-		Year:   movie.Year,
-		Rating: movie.Rating,
+
+func GetMovieAnalytics(db *sql.DB, analyticsType string, limit int) (interface{}, error) {
+	switch analyticsType {
+	case "genreCount":
+		analyticsData, err := service.GetMovieAnalytics(db, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch genre count: %v", err)
+		}
+		return analyticsData["genreCount"], nil
+
+	case "topRated":
+		analyticsData, err := service.GetMovieAnalytics(db, limit, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch top-rated movies: %v", err)
+		}
+		return analyticsData["topRatedMovies"], nil
+
+	case "recentlyAdded":
+		analyticsData, err := service.GetMovieAnalytics(db, 0, limit)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch recently added movies: %v", err)
+		}
+		return analyticsData["recentlyAddedMovies"], nil
+
+	default:
+		return nil, fmt.Errorf("invalid analytics type: %s", analyticsType)
 	}
 }
 
-func mapToAnalyticsResponse(analytics *models.AnalyticsResponse) *response.AnalyticsResponse {
-	return &response.AnalyticsResponse{
-		TotalMovies:   analytics.TotalMovies,
-		AverageRating: float64(analytics.AverageRating),
+func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
+	movie, err := service.GetMoviesById(db, id)
+	if err != nil {
+		return response.MovieResponse{}, err
 	}
+	return movie, nil
 }
