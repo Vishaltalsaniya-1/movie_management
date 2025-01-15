@@ -74,6 +74,9 @@ func ListMovies(db *sql.DB, filters map[string]interface{}, pageSize, pageNo int
 	}
 
 	movies, total, err := service.ListMovies(db, genre, title, year, pageSize, pageNo, orderBy, order)
+	fmt.Printf("Genre: %s, Title: %s, Year: %d\n", genre, title, year)
+fmt.Println("Calling service.ListMovies...")
+
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to retrieve movies: %v", err)
 	}
@@ -81,35 +84,14 @@ func ListMovies(db *sql.DB, filters map[string]interface{}, pageSize, pageNo int
 	return movies, total, nil
 }
 
-
-func GetMovieAnalytics(db *sql.DB, analyticsType string, limit int) (interface{}, error) {
-	switch analyticsType {
-	case "genreCount":
-		analyticsData, err := service.GetMovieAnalytics(db, 0, 0)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch genre count: %v", err)
-		}
-		return analyticsData["genreCount"], nil
-
-	case "topRated":
-		analyticsData, err := service.GetMovieAnalytics(db, limit, 0)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch top-rated movies: %v", err)
-		}
-		return analyticsData["topRatedMovies"], nil
-
-	case "recentlyAdded":
-		analyticsData, err := service.GetMovieAnalytics(db, 0, limit)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch recently added movies: %v", err)
-		}
-		return analyticsData["recentlyAddedMovies"], nil
-
-	default:
-		return nil, fmt.Errorf("invalid analytics type: %s", analyticsType)
+func GetMovieAnalytics(db *sql.DB) (map[string]interface{}, error) {
+	log.Println("analytics_managers------>")
+	analytics, err := service.FetchMovieAnalyticsData(db)
+	if err != nil {
+		return nil, err
 	}
+	return analytics, nil
 }
-
 func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
 	movie, err := service.GetMoviesById(db, id)
 	if err != nil {

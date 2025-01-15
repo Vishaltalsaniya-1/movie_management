@@ -3,10 +3,13 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"movie_management/models"
 	"movie_management/response"
 	"time"
 )
+
+// var db *sql.DB
 
 func CreateMovie(db *sql.DB, movie *models.Movie) (*response.MovieResponse, error) {
 	currentYear := time.Now().Year()
@@ -88,7 +91,7 @@ func DeleteMovie(db *sql.DB, id int) error {
 }
 
 func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, orderBy, order string) ([]response.MovieResponse, int, error) {
-	query := "SELECT SQL_CALC_FOUND_ROWS id, title, genre, year, rating, created_at, updated_at FROM movies WHERE 1=1"
+	query := `SELECT id, title, genre, year, rating, created_at, updated_at FROM movies WHERE 1=1`
 	args := []interface{}{}
 
 	if genre != "" {
@@ -104,17 +107,14 @@ func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, ord
 		args = append(args, "%"+title+"%")
 	}
 
-	if orderBy == "" {
-		orderBy = "id" 
-	}
-	if order == "" {
-		order = "ASC" 
-	}
 	query += fmt.Sprintf(" ORDER BY %s %s", orderBy, order)
 
 	offset := (pageNo - 1) * pageSize
 	query += " LIMIT ? OFFSET ?"
 	args = append(args, pageSize, offset)
+
+	fmt.Printf("Final Query: %s\n", query)
+	fmt.Printf("Arguments: %v\n", args)
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -125,21 +125,35 @@ func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, ord
 	var movies []response.MovieResponse
 	for rows.Next() {
 		var movie response.MovieResponse
-		var title, genre sql.NullString
-		if err := rows.Scan(&movie.ID, &title, &genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
+		if err := rows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan error: %v", err)
 		}
-
-		movie.Title = title.String
-		movie.Genre = genre.String
-
 		movies = append(movies, movie)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %v", err)
+	}
+
+	countQuery := `SELECT COUNT(*) FROM movies WHERE 1=1`
+	countArgs := []interface{}{}
+
+	if genre != "" {
+		countQuery += " AND genre = ?"
+		countArgs = append(countArgs, genre)
+	}
+	if year != 0 {
+		countQuery += " AND year = ?"
+		countArgs = append(countArgs, year)
+	}
+	if title != "" {
+		countQuery += " AND title LIKE ?"
+		countArgs = append(countArgs, "%"+title+"%")
+	}
+
 	var total int
-	totalQuery := "SELECT FOUND_ROWS()"
-	if err := db.QueryRow(totalQuery).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("total count error: %v", err)
+	if err := db.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count query error: %v", err)
 	}
 
 	return movies, total, nil
@@ -173,62 +187,124 @@ func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
 	return movie, nil
 }
 
-func GetMovieAnalytics(db *sql.DB, topRatedLimit, recentlyAddedLimit int) (map[string]interface{}, error) {
-	analytics := make(map[string]interface{})
+func FetchMovieAnalyticsData(db *sql.DB) (map[string]interface{}, error) {
+	log.Println("Entering FetchMovieAnalyticsData")
 
-	genreCountQuery := "SELECT genre, COUNT(*) FROM movies GROUP BY genre"
-	genreRows, err := db.Query(genreCountQuery)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count movies by genre: %v", err)
+	if db == nil {
+		err := fmt.Errorf("database connection is not initialized")
+		log.Println(err)
+		return nil, err
 	}
-	defer genreRows.Close()
 
-	genreCount := make(map[string]int)
-	for genreRows.Next() {
+	log.Println("Database connection is initialized")
+
+	genreCounts, err := fetchGenreCounts(db)
+	if err != nil {
+		log.Println("Error fetching genre counts:", err)
+		return nil, err
+	}
+
+	topRatedData, err := fetchTopRatedMoviesCount(db)
+	if err != nil {
+		log.Println("Error fetching top-rated movies:", err)
+		return nil, err
+	}
+
+	recentlyAddedCount, err := fetchRecentlyAddedMoviesCount(db)
+	if err != nil {
+		log.Println("Error fetching recently added movies count:", err)
+		return nil, err
+	}
+
+	analytics := map[string]interface{}{
+		"genreCounts":              genreCounts,
+		"topRated":                 topRatedData,
+		"recentlyAddedMoviesCount": recentlyAddedCount,
+	}
+
+	log.Println("Successfully fetched all movie analytics data")
+	return analytics, nil
+}
+
+func fetchGenreCounts(db *sql.DB) (map[string]int, error) {
+	if db == nil {
+		err := fmt.Errorf("database connection is not initialized")
+		log.Println(err)
+		return nil, err
+	}
+	log.Println("Fetching genre counts from the database")
+
+	rows, err := db.Query("SELECT genre, COUNT(*) AS count FROM movies GROUP BY genre")
+	if err != nil {
+		log.Println("Error executing query for genre counts:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	genreCounts := make(map[string]int)
+	for rows.Next() {
 		var genre string
 		var count int
-		if err := genreRows.Scan(&genre, &count); err != nil {
-			return nil, fmt.Errorf("failed to scan genre count: %v", err)
+		if err := rows.Scan(&genre, &count); err != nil {
+			log.Println("Error scanning row for genre counts:", err)
+			return nil, err
 		}
-		genreCount[genre] = count
+		genreCounts[genre] = count
 	}
-	analytics["genreCount"] = genreCount
 
-	topRatedQuery := "SELECT id, title, genre, year, rating, created_at FROM movies ORDER BY rating DESC LIMIT ?"
-	topRatedRows, err := db.Query(topRatedQuery, topRatedLimit)
+	log.Println("Successfully fetched genre counts")
+	return genreCounts, nil
+}
+
+
+func fetchTopRatedMoviesCount(db *sql.DB) (map[string]interface{}, error) {
+	if db == nil {
+		err := fmt.Errorf("database connection is not initialized")
+		log.Println(err)
+		return nil, err
+	}
+
+	var highestRating int
+	var count int
+
+	err := db.QueryRow("SELECT MAX(rating) FROM movies").Scan(&highestRating)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get top-rated movies: %v", err)
+		log.Println("Error fetching highest rating:", err)
+		return nil, err
 	}
-	defer topRatedRows.Close()
 
-	var topRatedMovies []response.MovieResponse
-	for topRatedRows.Next() {
-		var movie response.MovieResponse
-		if err := topRatedRows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan top-rated movie: %v", err)
-		}
-		topRatedMovies = append(topRatedMovies, movie)
-	}
-	analytics["topRatedMovies"] = topRatedMovies
-
-	recentlyAddedQuery := "SELECT id, title, genre, year, rating, created_at FROM movies ORDER BY created_at DESC LIMIT ?"
-	recentlyAddedRows, err := db.Query(recentlyAddedQuery, recentlyAddedLimit)
+	err = db.QueryRow("SELECT COUNT(*) FROM movies WHERE rating = ?", highestRating).Scan(&count)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get recently added movies: %v", err)
+		log.Println("Error fetching movie count:", err)
+		return nil, err
 	}
-	defer recentlyAddedRows.Close()
 
-	var recentlyAddedMovies []response.MovieResponse
-	for recentlyAddedRows.Next() {
-		var movie response.MovieResponse
-		if err := recentlyAddedRows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan recently added movie: %v", err)
-		}
-		recentlyAddedMovies = append(recentlyAddedMovies, movie)
+	log.Println("Successfully fetched top-rated movie data")
+	return map[string]interface{}{
+		"highestRating": highestRating,
+		"moviesCount":   count,
+	}, nil
+}
+
+func fetchRecentlyAddedMoviesCount(db *sql.DB) (int, error) {
+	if db == nil {
+		err := fmt.Errorf("database connection is not initialized")
+		log.Println(err)
+		return 0, err
 	}
-	analytics["recentlyAddedMovies"] = recentlyAddedMovies
 
-	return analytics, nil
+	log.Println("Fetching recently added movie count")
+	var count int
+	query := "SELECT COUNT(*) FROM movies WHERE created_at >= NOW() - INTERVAL 1 MINUTE"
+
+	err := db.QueryRow(query).Scan(&count)
+	if err != nil {
+		log.Println("Error fetching recently added movie count:", err)
+		return 0, err
+	}
+
+	log.Println("Successfully fetched recently added movie count")
+	return count, nil
 }
 
 // func GetMovieByID(db *sql.DB, id int) (*models.Movie, error) {

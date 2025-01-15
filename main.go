@@ -12,6 +12,7 @@ import (
 
 func main() {
 	config.LoadEnv()
+	
 
 	if err := db.Connect(); err != nil {
 		log.Fatalf("Database connection failed: %v", err)

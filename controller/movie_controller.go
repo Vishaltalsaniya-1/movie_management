@@ -3,10 +3,10 @@ package controller
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"movie_management/managers"
 	"movie_management/request"
-	"movie_management/response"
 	"net/http"
 	"strconv"
 
@@ -96,71 +96,87 @@ func DeleteMovie(c echo.Context) error {
 }
 
 func ListMovies(c echo.Context) error {
-	pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
-	pageSize, _ := strconv.Atoi(c.QueryParam("page_size"))
-	orderBy := c.QueryParam("order_by")
-	order := c.QueryParam("order")
-	genre := c.QueryParam("genre")
-	year := c.QueryParam("year")
-	title := c.QueryParam("title")
+    pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
+    pageSize, _ := strconv.Atoi(c.QueryParam("per_page")) 
+    orderBy := c.QueryParam("order_by")
+    order := c.QueryParam("order")
+    genre := c.QueryParam("genre")
+    year := c.QueryParam("year")
+    title := c.QueryParam("title")
 
-	if pageNo <= 0 {
-		pageNo = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 10
-	}
-	if order == "" {
-		order = "asc"
-	}
+    if pageNo <= 0 {
+        pageNo = 1
+    }
+    if pageSize <= 0 {
+        pageSize = 10 
+    }
+    if order == "" {
+        order = "asc"
+    }
 
-	filters := map[string]interface{}{}
-	if genre != "" {
-		filters["genre"] = genre
-	}
-	if year != "" {
-		yearInt, err := strconv.Atoi(year)
-		if err == nil {
-			filters["year"] = yearInt
-		}
-	}
-	if title != "" {
-		filters["title"] = title
-	}
+    validColumns := map[string]bool{"id": true, "title": true, "genre": true, "year": true, "rating": true}
+    if !validColumns[orderBy] {
+        orderBy = "id"
+    }
+    if order != "asc" && order != "desc" {
+        order = "asc"
+    }
 
-	movies, total, err := managers.ListMovies(db, filters, pageSize, pageNo, orderBy, order)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
-	}
+    filters := map[string]interface{}{}
+    if genre != "" {
+        filters["genre"] = genre
+    }
+    if year != "" {
+        yearInt, err := strconv.Atoi(year)
+        if err == nil {
+            filters["year"] = yearInt
+        }
+    }
+    if title != "" {
+        filters["title"] = title
+    }
 
-	totalPages := (total + pageSize - 1) / pageSize
-	response := response.PaginatedMoviesResponse{
-		Movies:      movies,
-		CurrentPage: pageNo,
-		TotalPages:  totalPages,
-		TotalCount:  total,
-		LastPage:    totalPages,
-	}
+    movies, total, err := managers.ListMovies(db, filters, pageSize, pageNo, orderBy, order)
+    fmt.Printf("Filters: %v, pageNo: %d, pageSize: %d, orderBy: %s, order: %s\n", filters, pageNo, pageSize, orderBy, order)
+    fmt.Println("Calling managers.ListMovies...")
 
-	return c.JSON(http.StatusOK, response)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
+    }
+
+    lastPages := (total + pageSize - 1) / pageSize
+    if lastPages == 0 {
+        lastPages = 1
+    }
+
+    response := map[string]interface{}{
+        "movies":       movies,
+        "page_no":      pageNo,
+        "page_size":    pageSize,
+        "last_pages":   lastPages,
+        "total_count":  total,
+        "current_page": pageNo,
+    }
+
+    return c.JSON(http.StatusOK, response)
 }
+
 
 
 func GetMovieAnalytics(c echo.Context) error {
-	analyticsType := c.QueryParam("type")
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	db := c.Get("db").(*sql.DB)
 
-	if analyticsType == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Analytics type is required"})
-	}
-
-	data, err := managers.GetMovieAnalytics(c.Get("db").(*sql.DB), analyticsType, limit)
+	log.Println("Analytics_controller--------->")
+	analytics, err := managers.GetMovieAnalytics(db)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch analytics"})
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch movie analytics",
+		})
 	}
 
-	return c.JSON(http.StatusOK, data)
+	return c.JSON(http.StatusOK, analytics)
 }
+
 
 func GetMoviesById(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
