@@ -6,6 +6,7 @@ import (
 	"log"
 	"movie_management/models"
 	"movie_management/response"
+	"strings"
 	"time"
 )
 
@@ -91,12 +92,19 @@ func DeleteMovie(db *sql.DB, id int) error {
 }
 
 func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, orderBy, order string) ([]response.MovieResponse, int, error) {
+	if orderBy == "" {
+		orderBy = "title"
+	}
+	if order == "" {
+		order = "asc"
+	}
+
 	query := `SELECT id, title, genre, year, rating, created_at, updated_at FROM movies WHERE 1=1`
 	args := []interface{}{}
 
 	if genre != "" {
-		query += " AND genre = ?"
-		args = append(args, genre)
+		query += " AND LOWER(genre) LIKE LOWER(?)"
+		args = append(args, "%"+strings.ToLower(genre)+"%")
 	}
 	if year != 0 {
 		query += " AND year = ?"
@@ -137,10 +145,9 @@ func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, ord
 
 	countQuery := `SELECT COUNT(*) FROM movies WHERE 1=1`
 	countArgs := []interface{}{}
-
 	if genre != "" {
-		countQuery += " AND genre = ?"
-		countArgs = append(countArgs, genre)
+		countQuery += " AND LOWER(genre) LIKE LOWER(?)"
+		countArgs = append(countArgs, "%"+strings.ToLower(genre)+"%")
 	}
 	if year != 0 {
 		countQuery += " AND year = ?"
@@ -256,7 +263,6 @@ func fetchGenreCounts(db *sql.DB) (map[string]int, error) {
 	return genreCounts, nil
 }
 
-
 func fetchTopRatedMoviesCount(db *sql.DB) (map[string]interface{}, error) {
 	if db == nil {
 		err := fmt.Errorf("database connection is not initialized")
@@ -264,7 +270,7 @@ func fetchTopRatedMoviesCount(db *sql.DB) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	var highestRating int
+	var highestRating float64
 	var count int
 
 	err := db.QueryRow("SELECT MAX(rating) FROM movies").Scan(&highestRating)
@@ -272,8 +278,7 @@ func fetchTopRatedMoviesCount(db *sql.DB) (map[string]interface{}, error) {
 		log.Println("Error fetching highest rating:", err)
 		return nil, err
 	}
-
-	err = db.QueryRow("SELECT COUNT(*) FROM movies WHERE rating = ?", highestRating).Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM movies WHERE ABS(rating - ?) < 0.001", highestRating).Scan(&count)
 	if err != nil {
 		log.Println("Error fetching movie count:", err)
 		return nil, err

@@ -76,7 +76,7 @@ func UpdateMovie(c echo.Context) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "InternalServerError"})
 	}
 
 	return c.JSON(http.StatusOK, updatedMovie)
@@ -89,79 +89,80 @@ func DeleteMovie(c echo.Context) error {
 	}
 	err = managers.DeleteMovie(db, id)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Movie deleted successfully"})
 }
 
 func ListMovies(c echo.Context) error {
-    pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
-    pageSize, _ := strconv.Atoi(c.QueryParam("per_page")) 
-    orderBy := c.QueryParam("order_by")
-    order := c.QueryParam("order")
-    genre := c.QueryParam("genre")
-    year := c.QueryParam("year")
-    title := c.QueryParam("title")
+	pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
+	pageSize, _ := strconv.Atoi(c.QueryParam("per_page"))
+	orderBy := c.QueryParam("order_by")
+	order := c.QueryParam("order")
+	genre := c.QueryParam("genre")
+	year := c.QueryParam("year")
+	title := c.QueryParam("title")
 
-    if pageNo <= 0 {
-        pageNo = 1
-    }
-    if pageSize <= 0 {
-        pageSize = 10 
-    }
-    if order == "" {
-        order = "asc"
-    }
-
-    validColumns := map[string]bool{"id": true, "title": true, "genre": true, "year": true, "rating": true}
-    if !validColumns[orderBy] {
-        orderBy = "id"
-    }
-    if order != "asc" && order != "desc" {
-        order = "asc"
+	if pageNo <= 0 {
+		pageNo = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	if order == "" {
+		order = "asc"
+	}
+	 if orderBy == "" {
+        orderBy = "title" 
     }
 
-    filters := map[string]interface{}{}
-    if genre != "" {
-        filters["genre"] = genre
-    }
-    if year != "" {
-        yearInt, err := strconv.Atoi(year)
-        if err == nil {
-            filters["year"] = yearInt
-        }
-    }
-    if title != "" {
-        filters["title"] = title
-    }
+	validColumns := map[string]bool{"id": true, "title": true, "genre": true, "year": true, "rating": true}
+	if !validColumns[orderBy] {
+		orderBy = "id"
+	}
+	if order != "asc" && order != "desc" {
+		order = "asc"
+	}
 
-    movies, total, err := managers.ListMovies(db, filters, pageSize, pageNo, orderBy, order)
-    fmt.Printf("Filters: %v, pageNo: %d, pageSize: %d, orderBy: %s, order: %s\n", filters, pageNo, pageSize, orderBy, order)
-    fmt.Println("Calling managers.ListMovies...")
+	filters := map[string]interface{}{}
+	if genre != "" {
+		filters["genre"] = genre
+	}
+	if year != "" {
+		yearInt, err := strconv.Atoi(year)
+		if err == nil {
+			filters["year"] = yearInt
+		}
+	}
+	if title != "" {
+		filters["title"] = title
+	}
 
-    if err != nil {
-        return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
-    }
+	movies, total, err := managers.ListMovies(db, filters, pageSize, pageNo, orderBy, order)
+	fmt.Printf("Filters: %v, pageNo: %d, pageSize: %d, orderBy: %s, order: %s\n", filters, pageNo, pageSize, orderBy, order)
+	fmt.Println("Calling managers.ListMovies...")
 
-    lastPages := (total + pageSize - 1) / pageSize
-    if lastPages == 0 {
-        lastPages = 1
-    }
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
+	}
 
-    response := map[string]interface{}{
-        "movies":       movies,
-        "page_no":      pageNo,
-        "page_size":    pageSize,
-        "last_pages":   lastPages,
-        "total_count":  total,
-        "current_page": pageNo,
-    }
+	lastPages := (total + pageSize - 1) / pageSize
+	if lastPages == 0 {
+		lastPages = 1
+	}
 
-    return c.JSON(http.StatusOK, response)
+	response := map[string]interface{}{
+		"movies":       movies,
+		"page_no":      pageNo,
+		"page_size":    pageSize,
+		"last_pages":   lastPages,
+		"total_count":  total,
+		"current_page": pageNo,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
-
-
 
 func GetMovieAnalytics(c echo.Context) error {
 	db := c.Get("db").(*sql.DB)
@@ -170,13 +171,12 @@ func GetMovieAnalytics(c echo.Context) error {
 	analytics, err := managers.GetMovieAnalytics(db)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to fetch movie analytics",
+			"error": "Failed to Getmovieanalytics",
 		})
 	}
 
 	return c.JSON(http.StatusOK, analytics)
 }
-
 
 func GetMoviesById(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
