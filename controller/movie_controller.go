@@ -3,7 +3,6 @@ package controller
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 	"movie_management/managers"
 	"movie_management/request"
@@ -96,71 +95,43 @@ func DeleteMovie(c echo.Context) error {
 }
 
 func ListMovies(c echo.Context) error {
-	pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
-	pageSize, _ := strconv.Atoi(c.QueryParam("per_page"))
-	orderBy := c.QueryParam("order_by")
-	order := c.QueryParam("order")
-	genre := c.QueryParam("genre")
-	year := c.QueryParam("year")
-	title := c.QueryParam("title")
-
-	if pageNo <= 0 {
-		pageNo = 1
+	// pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
+	// pageSize, _ := strconv.Atoi(c.QueryParam("per_page"))
+	// orderBy := c.QueryParam("order_by")
+	// order := c.QueryParam("order")
+	// genre := c.QueryParam("genre")
+	// year := c.QueryParam("year")
+	// title := c.QueryParam("title")
+	var req request.Req
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request parameters"})
 	}
-	if pageSize <= 0 {
-		pageSize = 10
+	if req.PageNo <= 0 {
+		req.PageNo = 1
 	}
-	if order == "" {
-		order = "asc"
+	if req.PageSize <= 0 {
+		req.PageSize = 10
 	}
-	 if orderBy == "" {
-        orderBy = "title" 
-    }
+	if req.Order == "" {
+		req.Order = "asc"
+	}
+	if req.OrderBy == "" {
+		req.OrderBy = "title"
+	}
 
 	validColumns := map[string]bool{"id": true, "title": true, "genre": true, "year": true, "rating": true}
-	if !validColumns[orderBy] {
-		orderBy = "id"
+	if !validColumns[req.OrderBy] {
+		req.OrderBy = "title"
 	}
-	if order != "asc" && order != "desc" {
-		order = "asc"
+	if req.Order != "asc" && req.Order != "desc" {
+		req.Order = "asc"
 	}
-
-	filters := map[string]interface{}{}
-	if genre != "" {
-		filters["genre"] = genre
-	}
-	if year != "" {
-		yearInt, err := strconv.Atoi(year)
-		if err == nil {
-			filters["year"] = yearInt
-		}
-	}
-	if title != "" {
-		filters["title"] = title
-	}
-
-	movies, total, err := managers.ListMovies(db, filters, pageSize, pageNo, orderBy, order)
-	fmt.Printf("Filters: %v, pageNo: %d, pageSize: %d, orderBy: %s, order: %s\n", filters, pageNo, pageSize, orderBy, order)
-	fmt.Println("Calling managers.ListMovies...")
-
+	log.Println("List req---->>")
+	response, err := managers.ListMovies(db, req)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
 	}
-
-	lastPages := (total + pageSize - 1) / pageSize
-	if lastPages == 0 {
-		lastPages = 1
-	}
-
-	response := map[string]interface{}{
-		"movies":       movies,
-		"page_no":      pageNo,
-		"page_size":    pageSize,
-		"last_pages":   lastPages,
-		"total_count":  total,
-		"current_page": pageNo,
-	}
-
+	
 	return c.JSON(http.StatusOK, response)
 }
 

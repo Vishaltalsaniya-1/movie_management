@@ -56,39 +56,36 @@ func DeleteMovie(db *sql.DB, id int) error {
 	}
 	return nil
 }
+func ListMovies(db *sql.DB, req request.Req) (response.ListMoviesResponse,error) {
+    log.Println("managers reqList---------->")
 
-func ListMovies(db *sql.DB, filters map[string]interface{}, pageSize, pageNo int, orderBy, order string) ([]response.MovieResponse, int, error) {
-	genre := ""
-	if val, ok := filters["genre"]; ok {
-		genre = val.(string)
-	}
+    movies, total, err := service.ListMovies(db, req)
+    if err != nil {
+        return response.ListMoviesResponse{},  fmt.Errorf("failed to retrieve movies: %v", err)
+    }
 
-	year := 0
-	if val, ok := filters["year"]; ok {
-		year = val.(int)
-	}
+    lastPages := (total + req.PageSize - 1) / req.PageSize
+    if lastPages == 0 {
+        lastPages = 1
+    }
 
-	title := ""
-	if val, ok := filters["title"]; ok {
-		title = val.(string)
-	}
+    response := response.ListMoviesResponse{
+        Movies:      movies,
+        PageNo:      req.PageNo,
+        PageSize:    req.PageSize,
+        TotalCount:  total,
+        LastPages:   lastPages,
+        CurrentPage: req.PageNo,
+    }
 
-	movies, total, err := service.ListMovies(db, genre, title, year, pageSize, pageNo, orderBy, order)
-	fmt.Printf("Genre: %s, Title: %s, Year: %d\n", genre, title, year)
-fmt.Println("Calling service.ListMovies...")
-
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to retrieve movies: %v", err)
-	}
-
-	return movies, total, nil
+    return response, nil
 }
 
-func GetMovieAnalytics(db *sql.DB) (map[string]interface{}, error) {
+func GetMovieAnalytics(db *sql.DB) (response.AnalyticsResponse,error) {
 	log.Println("analytics_managers------>")
 	analytics, err := service.FetchMovieAnalyticsData(db)
 	if err != nil {
-		return nil, err
+		return response.AnalyticsResponse{}, err
 	}
 	return analytics, nil
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"movie_management/models"
+	"movie_management/request"
 	"movie_management/response"
-	"strings"
 	"time"
 )
 
@@ -91,42 +91,43 @@ func DeleteMovie(db *sql.DB, id int) error {
 	return nil
 }
 
-func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, orderBy, order string) ([]response.MovieResponse, int, error) {
-	if orderBy == "" {
-		orderBy = "title"
-	}
-	if order == "" {
-		order = "asc"
+func ListMovies(db *sql.DB, req request.Req) ([]response.MovieResponse, int, error) {
+	
+	log.Println("service reqlist--->")
+
+	// log.Printf("pageNo: %d, pageSize: %d, OrderBy: %s, Order: %s", pageNo, pageSize, OrderBy, Order)
+
+	query := "SELECT * FROM movies WHERE 1=1"
+	countQuery := "SELECT COUNT(*) FROM movies WHERE 1=1"
+	var args []interface{}
+
+	if req.Filter != "" || req.Year != 0 {
+		if req.Filter != "" {
+			query += " AND (title LIKE ? OR genre LIKE ?)"
+			countQuery += " AND (title LIKE ? OR genre LIKE ?)"
+			args = append(args, "%"+req.Filter+"%", "%"+req.Filter+"%")
+		}
+		if req.Year != 0 {
+			query += " AND year = ?"
+			countQuery += " AND year = ?"
+			args = append(args,req.Year)
+		}
 	}
 
-	query := `SELECT id, title, genre, year, rating, created_at, updated_at FROM movies WHERE 1=1`
-	args := []interface{}{}
+	query += fmt.Sprintf(" ORDER BY %s %s LIMIT ? OFFSET ?", req.OrderBy, req.Order)
+	offset := (req.PageNo- 1) * req.PageSize
+	args = append(args, req.PageSize, offset)
 
-	if genre != "" {
-		query += " AND LOWER(genre) LIKE LOWER(?)"
-		args = append(args, "%"+strings.ToLower(genre)+"%")
+	log.Printf("Executing query: %s with args: %v\n", query, args)
+
+	var total int
+	if err := db.QueryRow(countQuery, args[:len(args)-2]...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count movies: %v", err)
 	}
-	if year != 0 {
-		query += " AND year = ?"
-		args = append(args, year)
-	}
-	if title != "" {
-		query += " AND title LIKE ?"
-		args = append(args, "%"+title+"%")
-	}
-
-	query += fmt.Sprintf(" ORDER BY %s %s", orderBy, order)
-
-	offset := (pageNo - 1) * pageSize
-	query += " LIMIT ? OFFSET ?"
-	args = append(args, pageSize, offset)
-
-	fmt.Printf("Final Query: %s\n", query)
-	fmt.Printf("Arguments: %v\n", args)
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("query error: %v", err)
+		return nil, 0, fmt.Errorf("failed to fetch movies: %v", err)
 	}
 	defer rows.Close()
 
@@ -134,33 +135,9 @@ func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, ord
 	for rows.Next() {
 		var movie response.MovieResponse
 		if err := rows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scan error: %v", err)
+			return nil, 0, fmt.Errorf("failed to parse movie row: %v", err)
 		}
 		movies = append(movies, movie)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows error: %v", err)
-	}
-
-	countQuery := `SELECT COUNT(*) FROM movies WHERE 1=1`
-	countArgs := []interface{}{}
-	if genre != "" {
-		countQuery += " AND LOWER(genre) LIKE LOWER(?)"
-		countArgs = append(countArgs, "%"+strings.ToLower(genre)+"%")
-	}
-	if year != 0 {
-		countQuery += " AND year = ?"
-		countArgs = append(countArgs, year)
-	}
-	if title != "" {
-		countQuery += " AND title LIKE ?"
-		countArgs = append(countArgs, "%"+title+"%")
-	}
-
-	var total int
-	if err := db.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count query error: %v", err)
 	}
 
 	return movies, total, nil
@@ -168,7 +145,7 @@ func ListMovies(db *sql.DB, genre, title string, year, pageSize, pageNo int, ord
 
 func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
 	selectStatement := `
-        SELECT id, title, genre, year, rating, created_at, updated_at 
+        SELECT * 
         FROM movies 
         WHERE id = ?`
 
@@ -194,13 +171,13 @@ func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
 	return movie, nil
 }
 
-func FetchMovieAnalyticsData(db *sql.DB) (map[string]interface{}, error) {
+func FetchMovieAnalyticsData(db *sql.DB) (response.AnalyticsResponse, error) {
 	log.Println("Entering FetchMovieAnalyticsData")
 
 	if db == nil {
 		err := fmt.Errorf("database connection is not initialized")
 		log.Println(err)
-		return nil, err
+		return response.AnalyticsResponse{}, err
 	}
 
 	log.Println("Database connection is initialized")
@@ -208,30 +185,32 @@ func FetchMovieAnalyticsData(db *sql.DB) (map[string]interface{}, error) {
 	genreCounts, err := fetchGenreCounts(db)
 	if err != nil {
 		log.Println("Error fetching genre counts:", err)
-		return nil, err
+		return response.AnalyticsResponse{}, err
 	}
 
 	topRatedData, err := fetchTopRatedMoviesCount(db)
 	if err != nil {
 		log.Println("Error fetching top-rated movies:", err)
-		return nil, err
+		return response.AnalyticsResponse{}, err
 	}
 
 	recentlyAddedCount, err := fetchRecentlyAddedMoviesCount(db)
 	if err != nil {
 		log.Println("Error fetching recently added movies count:", err)
-		return nil, err
+		return response.AnalyticsResponse{}, err
 	}
 
-	analytics := map[string]interface{}{
-		"genreCounts":              genreCounts,
-		"topRated":                 topRatedData,
-		"recentlyAddedMoviesCount": recentlyAddedCount,
+	analytics := response.AnalyticsResponse{
+		CountByGenre:       genreCounts,
+		TopRatedMoviesData: topRatedData,
+		RecentlyAddedCount: recentlyAddedCount,
 	}
 
 	log.Println("Successfully fetched all movie analytics data")
 	return analytics, nil
 }
+
+
 
 func fetchGenreCounts(db *sql.DB) (map[string]int, error) {
 	if db == nil {

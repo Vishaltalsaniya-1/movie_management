@@ -17,14 +17,16 @@ func Connect() error {
 		log.Printf("Warning: Error loading .env file: %v", err)
 	}
 
-	user := getEnv("DB_USER", "root")
-	password := getEnv("DB_PASSWORD", "")
-	host := getEnv("DB_HOST", "localhost")
-	port := getEnv("DB_PORT", "3306")
-	dbName := getEnv("DB_NAME", "movie_db")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", user, password, host, port, dbName)
-
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		dbUser, dbPass, dbHost, dbPort, dbName,
+	)
 	var err error
 	db, err = sql.Open("mysql", dsn)
 	if err != nil {
@@ -70,10 +72,10 @@ func GetDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
-}
+// func getEnv(key, fallback string) string {
+// 	value := os.Getenv(key)
+// 	if value == "" {
+// 		return fallback
+// 	}
+// 	return value
+// }
