@@ -90,19 +90,7 @@ func DeleteMovie(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Movie deleted successfully"})
 }
-
 func ListMovies(c echo.Context) error {
-<<<<<<< HEAD
-	// pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
-	// pageSize, _ := strconv.Atoi(c.QueryParam("per_page"))
-	// orderBy := c.QueryParam("order_by")
-	// order := c.QueryParam("order")
-	// genre := c.QueryParam("genre")
-	// year := c.QueryParam("year")
-	// title := c.QueryParam("title")
-=======
-	
->>>>>>> 18ab6fb (useing_gorm)
 	var req request.Req
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request parameters"})
@@ -132,31 +120,23 @@ func ListMovies(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
 	}
-<<<<<<< HEAD
-	
-=======
 
->>>>>>> 18ab6fb (useing_gorm)
 	return c.JSON(http.StatusOK, response)
 }
-
 func GetMovieAnalytics(c echo.Context) error {
-<<<<<<< HEAD
-	db := c.Get("db").(*sql.DB)
-=======
 	db := c.Get("db").(*gorm.DB)
->>>>>>> 18ab6fb (useing_gorm)
 
 	log.Println("Analytics_controller--------->")
 	analytics, err := managers.GetMovieAnalytics(db)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to Getmovieanalytics",
+			"error": "Failed to Get movie analytics",
 		})
 	}
 
 	return c.JSON(http.StatusOK, analytics)
 }
+
 
 func GetMoviesById(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
