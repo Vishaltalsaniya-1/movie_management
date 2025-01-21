@@ -11,13 +11,8 @@ import (
 	"gorm.io/gorm"
 )
 
-<<<<<<< HEAD
-// var db *sql.DB
 
-func CreateMovie(db *sql.DB, movie *models.Movie) (*response.MovieResponse, error) {
-=======
 func CreateMovie(db *gorm.DB, movie *models.Movie) (*response.MovieResponse, error) {
->>>>>>> 18ab6fb (useing_gorm)
 	currentYear := time.Now().Year()
 	if movie.Year < 1900 || movie.Year > currentYear {
 		return nil, fmt.Errorf("year should be between 1900 and %d", currentYear)
@@ -84,65 +79,6 @@ func DeleteMovie(db *gorm.DB, id int) error {
 	return nil
 }
 
-<<<<<<< HEAD
-func ListMovies(db *sql.DB, req request.Req) ([]response.MovieResponse, int, error) {
-	
-	log.Println("service reqlist--->")
-
-	// log.Printf("pageNo: %d, pageSize: %d, OrderBy: %s, Order: %s", pageNo, pageSize, OrderBy, Order)
-
-	query := "SELECT * FROM movies WHERE 1=1"
-	countQuery := "SELECT COUNT(*) FROM movies WHERE 1=1"
-	var args []interface{}
-
-	if req.Filter != "" || req.Year != 0 {
-		if req.Filter != "" {
-			query += " AND (title LIKE ? OR genre LIKE ?)"
-			countQuery += " AND (title LIKE ? OR genre LIKE ?)"
-			args = append(args, "%"+req.Filter+"%", "%"+req.Filter+"%")
-		}
-		if req.Year != 0 {
-			query += " AND year = ?"
-			countQuery += " AND year = ?"
-			args = append(args,req.Year)
-		}
-	}
-
-	query += fmt.Sprintf(" ORDER BY %s %s LIMIT ? OFFSET ?", req.OrderBy, req.Order)
-	offset := (req.PageNo- 1) * req.PageSize
-	args = append(args, req.PageSize, offset)
-
-	log.Printf("Executing query: %s with args: %v\n", query, args)
-
-	var total int
-	if err := db.QueryRow(countQuery, args[:len(args)-2]...).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("failed to count movies: %v", err)
-	}
-
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to fetch movies: %v", err)
-	}
-	defer rows.Close()
-
-	var movies []response.MovieResponse
-	for rows.Next() {
-		var movie response.MovieResponse
-		if err := rows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("failed to parse movie row: %v", err)
-		}
-		movies = append(movies, movie)
-	}
-
-	return movies, total, nil
-}
-
-func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
-	selectStatement := `
-        SELECT * 
-        FROM movies 
-        WHERE id = ?`
-=======
 func ListMovies(db *gorm.DB, req request.Req) ([]response.MovieResponse, int, error) {
 	
 	query := db.Model(&response.MovieResponse{}).Select("id", "title", "genre", "year", "rating", "created_at", "updated_at")
@@ -170,7 +106,6 @@ if err := query.Count(&total).Error; err != nil {
 	
 	log.Printf("Applying order by: %s %s", orderBy, order)
 	query = query.Order(fmt.Sprintf("%s %s", orderBy, order))
->>>>>>> 18ab6fb (useing_gorm)
 
 	offset := (req.PageNo - 1) * req.PageSize
 	log.Printf("Applying pagination with limit: %d and offset: %d", req.PageSize, offset)
@@ -198,128 +133,6 @@ func GetMoviesById(db *gorm.DB, id int) (response.MovieResponse, error) {
 	return movie, nil
 }
 func FetchMovieAnalyticsData(db *gorm.DB) (map[string]interface{}, error) {
-	log.Println("Entering FetchMovieAnalyticsData")
-
-<<<<<<< HEAD
-func FetchMovieAnalyticsData(db *sql.DB) (response.AnalyticsResponse, error) {
-	log.Println("Entering FetchMovieAnalyticsData")
-
-	if db == nil {
-		err := fmt.Errorf("database connection is not initialized")
-		log.Println(err)
-		return response.AnalyticsResponse{}, err
-	}
-
-	log.Println("Database connection is initialized")
-
-	genreCounts, err := fetchGenreCounts(db)
-	if err != nil {
-		log.Println("Error fetching genre counts:", err)
-		return response.AnalyticsResponse{}, err
-	}
-
-	topRatedData, err := fetchTopRatedMoviesCount(db)
-	if err != nil {
-		log.Println("Error fetching top-rated movies:", err)
-		return response.AnalyticsResponse{}, err
-	}
-
-	recentlyAddedCount, err := fetchRecentlyAddedMoviesCount(db)
-	if err != nil {
-		log.Println("Error fetching recently added movies count:", err)
-		return response.AnalyticsResponse{}, err
-	}
-
-	analytics := response.AnalyticsResponse{
-		CountByGenre:       genreCounts,
-		TopRatedMoviesData: topRatedData,
-		RecentlyAddedCount: recentlyAddedCount,
-	}
-
-	log.Println("Successfully fetched all movie analytics data")
-	return analytics, nil
-}
-
-
-
-func fetchGenreCounts(db *sql.DB) (map[string]int, error) {
-	if db == nil {
-		err := fmt.Errorf("database connection is not initialized")
-		log.Println(err)
-		return nil, err
-	}
-	log.Println("Fetching genre counts from the database")
-
-	rows, err := db.Query("SELECT genre, COUNT(*) AS count FROM movies GROUP BY genre")
-	if err != nil {
-		log.Println("Error executing query for genre counts:", err)
-		return nil, err
-	}
-	defer rows.Close()
-
-	genreCounts := make(map[string]int)
-	for rows.Next() {
-		var genre string
-		var count int
-		if err := rows.Scan(&genre, &count); err != nil {
-			log.Println("Error scanning row for genre counts:", err)
-			return nil, err
-		}
-		genreCounts[genre] = count
-	}
-
-	log.Println("Successfully fetched genre counts")
-	return genreCounts, nil
-}
-
-func fetchTopRatedMoviesCount(db *sql.DB) (map[string]interface{}, error) {
-	if db == nil {
-		err := fmt.Errorf("database connection is not initialized")
-		log.Println(err)
-		return nil, err
-	}
-
-	var highestRating float64
-	var count int
-
-	err := db.QueryRow("SELECT MAX(rating) FROM movies").Scan(&highestRating)
-	if err != nil {
-		log.Println("Error fetching highest rating:", err)
-		return nil, err
-	}
-	err = db.QueryRow("SELECT COUNT(*) FROM movies WHERE ABS(rating - ?) < 0.001", highestRating).Scan(&count)
-	if err != nil {
-		log.Println("Error fetching movie count:", err)
-		return nil, err
-	}
-
-	log.Println("Successfully fetched top-rated movie data")
-	return map[string]interface{}{
-		"highestRating": highestRating,
-		"moviesCount":   count,
-	}, nil
-}
-
-func fetchRecentlyAddedMoviesCount(db *sql.DB) (int, error) {
-	if db == nil {
-		err := fmt.Errorf("database connection is not initialized")
-		log.Println(err)
-		return 0, err
-	}
-
-	log.Println("Fetching recently added movie count")
-	var count int
-	query := "SELECT COUNT(*) FROM movies WHERE created_at >= NOW() - INTERVAL 1 MINUTE"
-
-	err := db.QueryRow(query).Scan(&count)
-	if err != nil {
-		log.Println("Error fetching recently added movie count:", err)
-		return 0, err
-	}
-
-	log.Println("Successfully fetched recently added movie count")
-	return count, nil
-=======
 	if db == nil {
 		err := fmt.Errorf("database connection is not initialized")
 		log.Println(err)
@@ -354,8 +167,8 @@ func fetchRecentlyAddedMoviesCount(db *sql.DB) (int, error) {
 
 	log.Println("Successfully fetched all movie analytics data")
 	return analytics, nil
->>>>>>> 18ab6fb (useing_gorm)
 }
+
 
 func fetchGenreCounts(db *gorm.DB) ([]response.GenreCount, error) {
 	log.Println("Fetching genre counts from the database")
