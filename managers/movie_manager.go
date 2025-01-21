@@ -65,9 +65,9 @@ func ListMovies(db *gorm.DB, req request.Req) (response.ListMoviesResponse, erro
 		return response.ListMoviesResponse{}, fmt.Errorf("failed to retrieve movies: %v", err)
 	}
 
-	lastPages := (total + req.PageSize - 1) / req.PageSize
-	if lastPages == 0 {
-		lastPages = 1
+	lastPage := (total + req.PageSize - 1) / req.PageSize
+	if lastPage == 0 {
+		lastPage = 1
 	}
 
 	response := response.ListMoviesResponse{
@@ -75,7 +75,7 @@ func ListMovies(db *gorm.DB, req request.Req) (response.ListMoviesResponse, erro
 		PageNo:      req.PageNo,
 		PageSize:    req.PageSize,
 		TotalCount:  total,
-		LastPages:   lastPages,
+		LastPage:   lastPage,
 		CurrentPage: req.PageNo,
 	}
 

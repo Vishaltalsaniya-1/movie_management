@@ -11,17 +11,16 @@ import (
 )
 
 func main() {
-	config.LoadEnv()
 	
+	mysqlCfg, err := config.Mysqlconfig()
+	if err != nil {
+		log.Fatalf("Failed to load MYSQL configuration: %v", err)
+	}
 
-	if err := db.Connect(); err != nil {
+	if _, err := db.Connect(mysqlCfg); err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
-	defer func() {
-		if err := db.CloseDB(); err != nil {
-			log.Printf("Error closing database: %v", err)
-		}
-	}()
+
 	controller.InitDB(db.DB)
 
 	e := echo.New()
@@ -40,8 +39,7 @@ func main() {
 	e.DELETE("/movies/:id", controller.DeleteMovie)
 	e.GET("/movies", controller.ListMovies)
 	e.GET("/movies/analytics", controller.GetMovieAnalytics)
-	e.GET("/movies/:id",controller.GetMoviesById)
-	
+	e.GET("/movies/:id", controller.GetMoviesById)
+
 	e.Logger.Fatal(e.Start(":8080"))
 }
-

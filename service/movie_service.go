@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-
 func CreateMovie(db *gorm.DB, movie *models.Movie) (*response.MovieResponse, error) {
 	currentYear := time.Now().Year()
 	if movie.Year < 1900 || movie.Year > currentYear {
@@ -37,8 +36,8 @@ func CreateMovie(db *gorm.DB, movie *models.Movie) (*response.MovieResponse, err
 		Genre:     movie.Genre,
 		Year:      movie.Year,
 		Rating:    movie.Rating,
-		CreatedAt: movie.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: movie.UpdatedAt.Format(time.RFC3339),
+		CreatedAt: movie.CreatedAt,
+		UpdatedAt: movie.UpdatedAt,
 	}
 
 	return createdMovie, nil
@@ -65,22 +64,26 @@ func UpdateMovie(db *gorm.DB, movie *models.Movie, id int) (*response.MovieRespo
 		Genre:     existingMovie.Genre,
 		Year:      existingMovie.Year,
 		Rating:    existingMovie.Rating,
-		CreatedAt: existingMovie.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: existingMovie.UpdatedAt.Format(time.RFC3339),
+		CreatedAt: existingMovie.CreatedAt,
+		UpdatedAt: existingMovie.UpdatedAt,
 	}
 
 	return updatedMovie, nil
 }
 
 func DeleteMovie(db *gorm.DB, id int) error {
-	if err := db.Delete(&models.Movie{}, id).Error; err != nil {
-		return fmt.Errorf("failed to delete movie: %v", err)
+	result := db.Delete(&models.Movie{}, id)
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("movie with ID %d not found", id)
+	}
+	if result.Error != nil {
+		return fmt.Errorf("failed to delete movie: %v", result.Error)
 	}
 	return nil
 }
 
 func ListMovies(db *gorm.DB, req request.Req) ([]response.MovieResponse, int, error) {
-	
+
 	query := db.Model(&response.MovieResponse{}).Select("id", "title", "genre", "year", "rating", "created_at", "updated_at")
 
 	if req.Filter != "" {
@@ -89,11 +92,11 @@ func ListMovies(db *gorm.DB, req request.Req) ([]response.MovieResponse, int, er
 	if req.Year != 0 {
 		query = query.Where("year = ?", req.Year)
 	}
-	
+
 	var total int64
-if err := query.Count(&total).Error; err != nil {
-    return nil, 0, fmt.Errorf("failed to count movies: %v", err)
-}
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count movies: %v", err)
+	}
 
 	orderBy := req.OrderBy
 	if orderBy == "" {
@@ -103,7 +106,7 @@ if err := query.Count(&total).Error; err != nil {
 	if order == "" {
 		order = "asc"
 	}
-	
+
 	log.Printf("Applying order by: %s %s", orderBy, order)
 	query = query.Order(fmt.Sprintf("%s %s", orderBy, order))
 
@@ -117,7 +120,7 @@ if err := query.Count(&total).Error; err != nil {
 	}
 
 	log.Println("Successfully fetched movies using GORM")
-	return movies,int(total), nil
+	return movies, int(total), nil
 }
 
 func GetMoviesById(db *gorm.DB, id int) (response.MovieResponse, error) {
@@ -168,7 +171,6 @@ func FetchMovieAnalyticsData(db *gorm.DB) (map[string]interface{}, error) {
 	log.Println("Successfully fetched all movie analytics data")
 	return analytics, nil
 }
-
 
 func fetchGenreCounts(db *gorm.DB) ([]response.GenreCount, error) {
 	log.Println("Fetching genre counts from the database")
