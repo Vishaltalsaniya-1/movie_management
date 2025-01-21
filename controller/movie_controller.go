@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"database/sql"
 	"errors"
 	"log"
 	"movie_management/managers"
@@ -11,11 +10,12 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
 )
 
-var db *sql.DB
+var db *gorm.DB
 
-func InitDB(database *sql.DB) {
+func InitDB(database *gorm.DB) {
 	db = database
 }
 
@@ -24,6 +24,7 @@ func CreateMovie(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
 	}
+
 	if req.Title == "" || req.Genre == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Title and Genre are required"})
 	}
@@ -39,7 +40,7 @@ func CreateMovie(c echo.Context) error {
 		log.Println("Validation error:", err)
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
-
+	log.Println("Req------>controller")
 	createdMovie, err := managers.CreateMovie(db, req)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
@@ -55,11 +56,6 @@ func UpdateMovie(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
 	}
 
-	db, ok := c.Get("db").(*sql.DB)
-	if !ok || db == nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Database connection is not available"})
-	}
-
 	var req request.MovieRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
@@ -72,7 +68,7 @@ func UpdateMovie(c echo.Context) error {
 
 	updatedMovie, err := managers.UpdateMovie(db, id, &req)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
 		}
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "InternalServerError"})
@@ -86,6 +82,7 @@ func DeleteMovie(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
 	}
+
 	err = managers.DeleteMovie(db, id)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
@@ -95,6 +92,7 @@ func DeleteMovie(c echo.Context) error {
 }
 
 func ListMovies(c echo.Context) error {
+<<<<<<< HEAD
 	// pageNo, _ := strconv.Atoi(c.QueryParam("page_no"))
 	// pageSize, _ := strconv.Atoi(c.QueryParam("per_page"))
 	// orderBy := c.QueryParam("order_by")
@@ -102,6 +100,9 @@ func ListMovies(c echo.Context) error {
 	// genre := c.QueryParam("genre")
 	// year := c.QueryParam("year")
 	// title := c.QueryParam("title")
+=======
+	
+>>>>>>> 18ab6fb (useing_gorm)
 	var req request.Req
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request parameters"})
@@ -131,12 +132,20 @@ func ListMovies(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
 	}
+<<<<<<< HEAD
 	
+=======
+
+>>>>>>> 18ab6fb (useing_gorm)
 	return c.JSON(http.StatusOK, response)
 }
 
 func GetMovieAnalytics(c echo.Context) error {
+<<<<<<< HEAD
 	db := c.Get("db").(*sql.DB)
+=======
+	db := c.Get("db").(*gorm.DB)
+>>>>>>> 18ab6fb (useing_gorm)
 
 	log.Println("Analytics_controller--------->")
 	analytics, err := managers.GetMovieAnalytics(db)

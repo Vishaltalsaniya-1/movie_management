@@ -22,24 +22,19 @@ func main() {
 			log.Printf("Error closing database: %v", err)
 		}
 	}()
-
-	database, err := db.GetDB()
-	if err != nil {
-		log.Fatalf("Error getting database instance: %v", err)
-	}
-	controller.InitDB(database)
+	controller.InitDB(db.DB)
 
 	e := echo.New()
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			c.Set("db", database)
+			c.Set("db", db.DB)
 			return next(c)
 		}
 	})
-
 	e.POST("/movies", controller.CreateMovie)
 	e.PUT("/movies/:id", controller.UpdateMovie)
 	e.DELETE("/movies/:id", controller.DeleteMovie)

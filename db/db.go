@@ -1,16 +1,18 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
+	"movie_management/models"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
-var db *sql.DB
+var DB *gorm.DB
 
 func Connect() error {
 	if err := godotenv.Load(); err != nil {
@@ -28,48 +30,34 @@ func Connect() error {
 		dbUser, dbPass, dbHost, dbPort, dbName,
 	)
 	var err error
-	db, err = sql.Open("mysql", dsn)
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return fmt.Errorf("error connecting to database: %v", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("error pinging database: %v", err)
+	if err := DB.AutoMigrate(&models.Movie{}); err != nil {
+		return fmt.Errorf("error migrating database: %v", err)
 	}
 
 	log.Println("Connected to database!")
-
-	createTableQuery := `
-	CREATE TABLE IF NOT EXISTS movies (
-		id INT AUTO_INCREMENT PRIMARY KEY,
-		title VARCHAR(255) NOT NULL UNIQUE,
-		genre VARCHAR(50) NOT NULL,
-		year YEAR NOT NULL,
-		rating DECIMAL(3,1) CHECK (rating BETWEEN 0 AND 5),
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-	);`
-
-	if _, err = db.Exec(createTableQuery); err != nil {
-		return fmt.Errorf("error creating table: %v", err)
-	}
-
-	log.Println("Movies table is ready!")
 	return nil
 }
 
 func CloseDB() error {
-	if db != nil {
-		return db.Close()
+	if DB != nil {
+		sqlDB, err := DB.DB()
+		if err != nil {
+			return err
+		}
+		return sqlDB.Close()
 	}
 	return nil
 }
 
-func GetDB() (*sql.DB, error) {
-	if db == nil {
+func GetDB() (*gorm.DB, error) {
+	if DB == nil {
 		return nil, fmt.Errorf("database connection not initialized")
 	}
-	return db, nil
+	return DB, nil
 }
 
 // func getEnv(key, fallback string) string {

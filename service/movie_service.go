@@ -1,96 +1,90 @@
 package service
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"movie_management/models"
 	"movie_management/request"
 	"movie_management/response"
 	"time"
+
+	"gorm.io/gorm"
 )
 
+<<<<<<< HEAD
 // var db *sql.DB
 
 func CreateMovie(db *sql.DB, movie *models.Movie) (*response.MovieResponse, error) {
+=======
+func CreateMovie(db *gorm.DB, movie *models.Movie) (*response.MovieResponse, error) {
+>>>>>>> 18ab6fb (useing_gorm)
 	currentYear := time.Now().Year()
 	if movie.Year < 1900 || movie.Year > currentYear {
 		return nil, fmt.Errorf("year should be between 1900 and %d", currentYear)
 	}
-
+	log.Println("timenow--->")
 	var existingMovie models.Movie
-	query := "SELECT id FROM movies WHERE title = ?"
-	err := db.QueryRow(query, movie.Title).Scan(&existingMovie.ID)
-	if err != sql.ErrNoRows {
+	if err := db.Where("title = ?", movie.Title).First(&existingMovie).Error; err == nil {
 		return nil, fmt.Errorf("a movie with the title '%s' already exists", movie.Title)
 	}
+	log.Println("existing---->")
 	now := time.Now()
-
-	query = "INSERT INTO movies (title, genre, year, rating, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-	result, err := db.Exec(query, movie.Title, movie.Genre, movie.Year, movie.Rating, now, now)
-	if err != nil {
+	movie.CreatedAt = now
+	movie.UpdatedAt = now
+	log.Println("creat")
+	if err := db.Create(movie).Error; err != nil {
 		return nil, fmt.Errorf("failed to create movie: %v", err)
 	}
 
-	lastInsertID, err := result.LastInsertId()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the last inserted movie ID: %v", err)
-	}
-
 	createdMovie := &response.MovieResponse{
-		ID:        uint(lastInsertID),
+		ID:        uint(movie.ID),
 		Title:     movie.Title,
 		Genre:     movie.Genre,
 		Year:      movie.Year,
 		Rating:    movie.Rating,
-		CreatedAt: now.Format(time.RFC3339),
-		UpdatedAt: now.Format(time.RFC3339),
+		CreatedAt: movie.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: movie.UpdatedAt.Format(time.RFC3339),
 	}
 
 	return createdMovie, nil
 }
 
-func UpdateMovie(db *sql.DB, movie *models.Movie, id int) (response.MovieResponse, error) {
-	sqlStatement := `
-        UPDATE movies
-        SET title = ?, genre = ?, year = ?, rating = ?,updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`
-
-	_, err := db.Exec(sqlStatement, movie.Title, movie.Genre, movie.Year, movie.Rating, id)
-	if err != nil {
-		return response.MovieResponse{}, fmt.Errorf("failed to update movie: %v", err)
+func UpdateMovie(db *gorm.DB, movie *models.Movie, id int) (*response.MovieResponse, error) {
+	var existingMovie models.Movie
+	if err := db.First(&existingMovie, id).Error; err != nil {
+		return nil, fmt.Errorf("failed to find movie with id %d: %v", id, err)
 	}
 
-	selectStatement := `
-	SELECT id, title, genre, year, rating, created_at, updated_at
-	FROM movies
-	WHERE id = ?`
+	existingMovie.Title = movie.Title
+	existingMovie.Genre = movie.Genre
+	existingMovie.Year = movie.Year
+	existingMovie.Rating = movie.Rating
+	existingMovie.UpdatedAt = time.Now()
+	if err := db.Save(&existingMovie).Error; err != nil {
+		return nil, fmt.Errorf("failed to update movie: %v", err)
+	}
 
-	var updatedMovie response.MovieResponse
-	err = db.QueryRow(selectStatement, id).Scan(
-		&updatedMovie.ID,
-		&updatedMovie.Title,
-		&updatedMovie.Genre,
-		&updatedMovie.Year,
-		&updatedMovie.Rating,
-		&updatedMovie.CreatedAt,
-		&updatedMovie.UpdatedAt,
-	)
-	if err != nil {
-		return response.MovieResponse{}, fmt.Errorf("failed to retrieve updated movie: %v", err)
+	updatedMovie := &response.MovieResponse{
+		ID:        uint(existingMovie.ID),
+		Title:     existingMovie.Title,
+		Genre:     existingMovie.Genre,
+		Year:      existingMovie.Year,
+		Rating:    existingMovie.Rating,
+		CreatedAt: existingMovie.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: existingMovie.UpdatedAt.Format(time.RFC3339),
 	}
 
 	return updatedMovie, nil
 }
 
-func DeleteMovie(db *sql.DB, id int) error {
-	_, err := db.Exec("DELETE FROM movies WHERE id = ?", id)
-	if err != nil {
+func DeleteMovie(db *gorm.DB, id int) error {
+	if err := db.Delete(&models.Movie{}, id).Error; err != nil {
 		return fmt.Errorf("failed to delete movie: %v", err)
 	}
 	return nil
 }
 
+<<<<<<< HEAD
 func ListMovies(db *sql.DB, req request.Req) ([]response.MovieResponse, int, error) {
 	
 	log.Println("service reqlist--->")
@@ -148,21 +142,54 @@ func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
         SELECT * 
         FROM movies 
         WHERE id = ?`
+=======
+func ListMovies(db *gorm.DB, req request.Req) ([]response.MovieResponse, int, error) {
+	
+	query := db.Model(&response.MovieResponse{}).Select("id", "title", "genre", "year", "rating", "created_at", "updated_at")
 
+	if req.Filter != "" {
+		query = query.Where("title LIKE ? OR genre LIKE ?", "%"+req.Filter+"%", "%"+req.Filter+"%")
+	}
+	if req.Year != 0 {
+		query = query.Where("year = ?", req.Year)
+	}
+	
+	var total int64
+if err := query.Count(&total).Error; err != nil {
+    return nil, 0, fmt.Errorf("failed to count movies: %v", err)
+}
+
+	orderBy := req.OrderBy
+	if orderBy == "" {
+		orderBy = "id"
+	}
+	order := req.Order
+	if order == "" {
+		order = "asc"
+	}
+	
+	log.Printf("Applying order by: %s %s", orderBy, order)
+	query = query.Order(fmt.Sprintf("%s %s", orderBy, order))
+>>>>>>> 18ab6fb (useing_gorm)
+
+	offset := (req.PageNo - 1) * req.PageSize
+	log.Printf("Applying pagination with limit: %d and offset: %d", req.PageSize, offset)
+	query = query.Offset(offset).Limit(req.PageSize)
+
+	var movies []response.MovieResponse
+	if err := query.Find(&movies).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch movies: %v", err)
+	}
+
+	log.Println("Successfully fetched movies using GORM")
+	return movies,int(total), nil
+}
+
+func GetMoviesById(db *gorm.DB, id int) (response.MovieResponse, error) {
 	var movie response.MovieResponse
 
-	err := db.QueryRow(selectStatement, id).Scan(
-		&movie.ID,
-		&movie.Title,
-		&movie.Genre,
-		&movie.Year,
-		&movie.Rating,
-		&movie.CreatedAt,
-		&movie.UpdatedAt,
-	)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
+	if err := db.Model(&models.Movie{}).Where("id = ?", id).First(&movie).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			return response.MovieResponse{}, fmt.Errorf("movie with id %d not found", id)
 		}
 		return response.MovieResponse{}, fmt.Errorf("failed to retrieve movie: %v", err)
@@ -170,7 +197,10 @@ func GetMoviesById(db *sql.DB, id int) (response.MovieResponse, error) {
 
 	return movie, nil
 }
+func FetchMovieAnalyticsData(db *gorm.DB) (map[string]interface{}, error) {
+	log.Println("Entering FetchMovieAnalyticsData")
 
+<<<<<<< HEAD
 func FetchMovieAnalyticsData(db *sql.DB) (response.AnalyticsResponse, error) {
 	log.Println("Entering FetchMovieAnalyticsData")
 
@@ -289,74 +319,101 @@ func fetchRecentlyAddedMoviesCount(db *sql.DB) (int, error) {
 
 	log.Println("Successfully fetched recently added movie count")
 	return count, nil
+=======
+	if db == nil {
+		err := fmt.Errorf("database connection is not initialized")
+		log.Println(err)
+		return nil, err
+	}
+
+	log.Println("Database connection is initialized")
+
+	genreCounts, err := fetchGenreCounts(db)
+	if err != nil {
+		log.Println("Error fetching genre counts:", err)
+		return nil, err
+	}
+
+	topRatedData, err := fetchTopRatedMovies(db)
+	if err != nil {
+		log.Println("Error fetching top-rated movies:", err)
+		return nil, err
+	}
+
+	recentlyAddedMovies, err := fetchRecentlyAddedMovies(db)
+	if err != nil {
+		log.Println("Error fetching recently added movies:", err)
+		return nil, err
+	}
+
+	analytics := map[string]interface{}{
+		"genreCounts":         genreCounts,
+		"topRatedMovies":      topRatedData,
+		"recentlyAddedMovies": recentlyAddedMovies,
+	}
+
+	log.Println("Successfully fetched all movie analytics data")
+	return analytics, nil
+>>>>>>> 18ab6fb (useing_gorm)
 }
 
-// func GetMovieByID(db *sql.DB, id int) (*models.Movie, error) {
-// 	var movie models.Movie
-// 	err := db.QueryRow("SELECT id, title, genre, year, rating, created_at, updated_at FROM movies WHERE id = ?", id).
-// 		Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt)
-// 	if err != nil {
-// 		if err == sql.ErrNoRows {
-// 			return nil, fmt.Errorf("movie not found")
-// 		}
-// 		return nil, fmt.Errorf("failed to fetch movie by ID: %v", err)
-// 	}
-// 	return &movie, nil
-// }
+func fetchGenreCounts(db *gorm.DB) ([]response.GenreCount, error) {
+	log.Println("Fetching genre counts from the database")
 
-// func GetByAnalytics(db *sql.DB) (*response.AnalyticsResponse, error) {
-// 	genreCountQuery := "SELECT genre, COUNT(*) FROM movies GROUP BY genre"
-// 	rows, err := db.Query(genreCountQuery)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to count movies by genre: %v", err)
-// 	}
-// 	defer rows.Close()
+	var genreCounts []response.GenreCount
+	err := db.Table("movies").
+		Select("genre, COUNT(*) AS count").
+		Group("genre").
+		Scan(&genreCounts).Error
 
-// 	genreCount := make(map[string]int)
-// 	for rows.Next() {
-// 		var genre string
-// 		var count int
-// 		if err := rows.Scan(&genre, &count); err != nil {
-// 			return nil, fmt.Errorf("failed to scan genre count: %v", err)
-// 		}
-// 		genreCount[genre] = count
-// 	}
+	if err != nil {
+		log.Println("Error executing query for genre counts:", err)
+		return nil, err
+	}
 
-// 	topRatedMoviesQuery := "SELECT id, title, genre, year, rating, created_at, updated_at FROM movies ORDER BY rating DESC LIMIT 10"
-// 	rows, err = db.Query(topRatedMoviesQuery)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to get top-rated movies: %v", err)
-// 	}
-// 	defer rows.Close()
+	log.Println("Successfully fetched genre counts")
+	return genreCounts, nil
+}
 
-// 	var topRatedMovies []response.MovieResponse
-// 	for rows.Next() {
-// 		var movie response.MovieResponse
-// 		if err := rows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
-// 			return nil, fmt.Errorf("failed to scan movie: %v", err)
-// 		}
-// 		topRatedMovies = append(topRatedMovies, movie)
-// 	}
+func fetchTopRatedMovies(db *gorm.DB) ([]response.MovieResponse, error) {
+	log.Println("Fetching top-rated movie data")
 
-// 	recentlyAddedMoviesQuery := "SELECT id, title, genre, year, rating, created_at, updated_at FROM movies ORDER BY created_at DESC LIMIT 10"
-// 	rows, err = db.Query(recentlyAddedMoviesQuery)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to get recently added movies: %v", err)
-// 	}
-// 	defer rows.Close()
+	var highestRating float64
+	err := db.Table("movies").
+		Select("MAX(rating)").
+		Row().
+		Scan(&highestRating)
+	if err != nil {
+		log.Println("Error fetching highest rating:", err)
+		return nil, err
+	}
 
-// 	var recentlyAddedMovies []response.MovieResponse
-// 	for rows.Next() {
-// 		var movie response.MovieResponse
-// 		if err := rows.Scan(&movie.ID, &movie.Title, &movie.Genre, &movie.Year, &movie.Rating, &movie.CreatedAt, &movie.UpdatedAt); err != nil {
-// 			return nil, fmt.Errorf("failed to scan movie: %v", err)
-// 		}
-// 		recentlyAddedMovies = append(recentlyAddedMovies, movie)
-// 	}
+	var topRatedMovies []response.MovieResponse
+	err = db.Table("movies").
+		Where("rating = ?", highestRating).
+		Find(&topRatedMovies).Error
+	if err != nil {
+		log.Println("Error fetching top-rated movies:", err)
+		return nil, err
+	}
 
-// 	return &response.AnalyticsResponse{
-// 		GenreCount:          genreCount,
-// 		TopRatedMovies:      topRatedMovies,
-// 		RecentlyAddedMovies: recentlyAddedMovies,
-// 	}, nil
-// }
+	log.Println("Successfully fetched top-rated movie data")
+	return topRatedMovies, nil
+}
+
+func fetchRecentlyAddedMovies(db *gorm.DB) ([]response.MovieResponse, error) {
+	log.Println("Fetching recently added movies")
+
+	var recentlyAddedMovies []response.MovieResponse
+	err := db.Table("movies").
+		Where("created_at >= NOW() - INTERVAL 1 MINUTE").
+		Find(&recentlyAddedMovies).Error
+
+	if err != nil {
+		log.Println("Error fetching recently added movies:", err)
+		return nil, err
+	}
+
+	log.Println("Successfully fetched recently added movie data")
+	return recentlyAddedMovies, nil
+}
