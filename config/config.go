@@ -16,9 +16,9 @@ type Mysql struct {
 
 func Mysqlconfig() (*Mysql, error) {
 	var cfg Mysql
-	if err := env.Parse(&cfg); err!=nil{
-		log.Printf("Failed to load Mysql Config: %v",err)
+	if err := env.Parse(&cfg); err != nil {
+		log.Printf("Failed to load MySQL config: %v", err)
+		return nil, err
 	}
-	return &cfg,nil
+	return &cfg, nil
 }
-
