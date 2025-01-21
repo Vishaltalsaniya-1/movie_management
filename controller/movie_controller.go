@@ -71,7 +71,7 @@ func UpdateMovie(c echo.Context) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
 		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "InternalServerError"})
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
 	}
 
 	return c.JSON(http.StatusOK, updatedMovie)
@@ -100,6 +100,13 @@ func ListMovies(c echo.Context) error {
 	}
 	if req.PageSize <= 0 {
 		req.PageSize = 10
+	}
+
+	if c.QueryParam("per_page") != "" {
+		pageSize, err := strconv.Atoi(c.QueryParam("per_page"))
+		if err == nil && pageSize > 0 {
+			req.PageSize = pageSize
+		}
 	}
 	if req.Order == "" {
 		req.Order = "asc"
