@@ -3,13 +3,18 @@ package response
 import "time"
 
 type MovieResponse struct {
-	ID        uint      `json:"id"`
-	Title     string    `json:"title"`
-	Genre     string    `json:"genre"`
-	Year      int       `json:"year"`
-	Rating    float64   `json:"rating"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"update_at"`
+	ID        int       `json:"id" orm:"column(id)"`
+	Title     string    `json:"title" orm:"column(title)"`
+	Genre     string    `json:"genre" orm:"column(genre)"`
+	Year      int       `json:"year" orm:"column(year)"`
+	Rating    float64   `json:"rating" orm:"column(rating)"`
+	CreatedAt time.Time `json:"created_at" orm:"column(created_at)"`
+	UpdatedAt time.Time `json:"updated_at" orm:"column(updated_at)"`
+}
+
+
+type ErrorResponse struct {
+    Message string `json:"message"`
 }
 
 type ListMoviesResponse struct {
@@ -21,11 +26,6 @@ type ListMoviesResponse struct {
 	CurrentPage int             `json:"current_page"`
 }
 
-type AnalyticsResponse struct {
-	CountByGenre       map[string]int         `json:"genreCounts,omitempty"`
-	TopRatedMoviesData map[string]interface{} `json:"topRated,omitempty"`
-	RecentlyAddedCount int                    `json:"recentlyAddedCount,omitempty"`
-}
 
 type GenreCount struct {
 	Genre string `json:"genre"`

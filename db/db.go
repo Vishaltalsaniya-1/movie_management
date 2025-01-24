@@ -3,27 +3,30 @@ package db
 import (
 	"fmt"
 	"movie_management/config"
-	"movie_management/models"
 
-	_ "github.com/go-sql-driver/mysql"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"github.com/beego/beego/v2/client/orm"
+	_ "github.com/go-sql-driver/mysql" 
 )
 
-func Connect(cfg *config.Mysql) (*gorm.DB, error) {
-	mysqlDSN := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		cfg.DB_USER, cfg.DB_PASSWORD, cfg.DB_HOST, cfg.DB_PORT, cfg.DB_NAME,
-	)
-
-	db, err := gorm.Open(mysql.Open(mysqlDSN), &gorm.Config{})
+func Connect() error {
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return fmt.Errorf("failed to load config: %v", err)
 	}
 
-	if err := db.AutoMigrate(&models.Movie{}); err != nil {
-		return nil, fmt.Errorf("failed to migrate database: %w", err)
+	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8",
+		cfg.DB_USER, cfg.DB_PASSWORD, cfg.DB_HOST, cfg.DB_PORT, cfg.DB_NAME)
+
+	err = orm.RegisterDataBase("default", "mysql", connectionString)
+	if err != nil {
+		return fmt.Errorf("failed to register database: %v", err)
 	}
 
-	return db, nil
+	orm.Debug = true
+
+	return orm.RunSyncdb("default", false, true)
+}
+
+func GetDB() orm.Ormer {
+	return orm.NewOrm()
 }

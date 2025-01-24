@@ -1,13 +1,11 @@
 package request
 
 type MovieRequest struct {
-	Title  string  `json:"title" validate:"required"`
+	Title  string  `json:"title" validate:"required" orm:"column(id)"`
 	Genre  string  `json:"genre" validate:"required"`
 	Year   int     `json:"year"`
 	Rating float64 `json:"rating" validate:"required,gte=1,lte=5"`
-	// CreatedAt *time.Time `json:"created_at"`
-	// UpdatedAt *time.Time `json:"updated_at"`
-
+	
 }
 
 type Req struct {
@@ -16,5 +14,5 @@ type Req struct {
 	OrderBy  string `json:"sort_by" query:"order_by"`
 	Order    string `json:"sort_order" query:"order" validate:"oneof=asc desc"`
 	Filter   string `json:"filter" query:"filter"`
-	Year	int     `json:"year" query:"year"`
+	Year     int    `json:"year" query:"year"`
 }

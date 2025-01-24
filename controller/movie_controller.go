@@ -1,135 +1,131 @@
 package controller
 
 import (
-	"errors"
 	"log"
 	"movie_management/managers"
 	"movie_management/request"
-	"net/http"
+	"movie_management/response"
 	"strconv"
 
-	"github.com/go-playground/validator/v10"
+	"net/http"
+
+	"github.com/beego/beego/v2/client/orm"
+	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 )
 
-var db *gorm.DB
-
-func InitDB(database *gorm.DB) {
-	db = database
-}
+var validate = validator.New()
 
 func CreateMovie(c echo.Context) error {
 	var req request.MovieRequest
+
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid request"})
 	}
+	log.Println("req----->")
 
-	if req.Title == "" || req.Genre == "" || req.Year == 0 || req.Rating == 0 {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "All fields are required"})
-	}
-
-	validate := validator.New()
 	if err := validate.Struct(req); err != nil {
-		log.Println("Validation error:", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Validation failed"})
 	}
+	log.Println("req2----->")
 
-	createdMovie, err := managers.CreateMovie(db, req)
+	createdMovie, err := managers.CreateMovie(req)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Error creating movie"})
 	}
 
-	return c.JSON(http.StatusOK, createdMovie)
+	return c.JSON(http.StatusCreated, createdMovie)
 }
 
 func UpdateMovie(c echo.Context) error {
 	idParam := c.Param("id")
 	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid ID"})
 	}
 
 	var req request.MovieRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid input"})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid request"})
+	}
+	if err := validate.Struct(req); err != nil {
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Validation failed"})
 	}
 
-	validate := validator.New()
-	if err := validate.Struct(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
-	}
-
-	updatedMovie, err := managers.UpdateMovie(db, id, &req)
+	updatedMovie, err := managers.UpdateMovie(id, req)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
-		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		
+			return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
+		
 	}
 
 	return c.JSON(http.StatusOK, updatedMovie)
 }
-
 func DeleteMovie(c echo.Context) error {
-	id, err := strconv.Atoi(c.Param("id"))
+	idParam := c.Param("id")
+	id, err := strconv.Atoi(idParam)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid ID"})
 	}
-
-	err = managers.DeleteMovie(db, id)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
+	if err := managers.DeleteMovie(id); err != nil {
+		
+			return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
+		
 	}
-
-	return c.JSON(http.StatusOK, map[string]string{"message": "Movie deleted successfully"})
+	return c.JSON(http.StatusOK, map[string]string{"message": "Movie successfully deleted"})
 }
 
 func ListMovies(c echo.Context) error {
 	var req request.Req
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request parameters"})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid request parameters"})
 	}
+
 	if req.PageNo <= 0 {
 		req.PageNo = 1
 	}
 	if req.PageSize <= 0 {
 		req.PageSize = 10
 	}
+
 	if c.QueryParam("per_page") != "" {
-        pageSize, err := strconv.Atoi(c.QueryParam("per_page"))
-        if err == nil && pageSize > 0 {
-            req.PageSize = pageSize
-        }
-    }
-
-	response, err := managers.ListMovies(db, req)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch movies"})
+		pageSize, err := strconv.Atoi(c.QueryParam("per_page"))
+		if err == nil && pageSize > 0 {
+			req.PageSize = pageSize
+		}
 	}
 
-	return c.JSON(http.StatusOK, response)
-}
+	o := orm.NewOrm()
 
-func GetMovieAnalytics(c echo.Context) error {
-	analytics, err := managers.GetMovieAnalytics(db)
+	movieListResponse, err := managers.ListMovies(o, req)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch analytics"})
+		return c.JSON(http.StatusInternalServerError, response.ErrorResponse{Message: "Failed to fetch movies"})
 	}
 
-	return c.JSON(http.StatusOK, analytics)
+	return c.JSON(http.StatusOK, movieListResponse)
 }
 
 func GetMoviesById(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid movie ID"})
+		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid movie ID"})
 	}
 
-	movie, err := managers.GetMoviesById(db, id)
+	movie, err := managers.GetMoviesById(id)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, map[string]string{"error": "Movie not found"})
+
+		return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
+
 	}
 
 	return c.JSON(http.StatusOK, movie)
+}
+
+func GetMovieAnalytics(c echo.Context) error {
+	analytics, err := managers.GetMovieAnalytics()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, response.ErrorResponse{Message: "Failed to fetch analytics"})
+	}
+
+	return c.JSON(http.StatusOK, analytics)
 }

@@ -14,7 +14,11 @@ type Mysql struct {
 	DB_PORT     string `env:"DB_PORT" envDefault:"3306"`
 }
 
-func Mysqlconfig() (*Mysql, error) {
+type Config struct{
+	Mysql Mysql
+}
+
+func LoadConfig() (*Mysql, error) {
 	var cfg Mysql
 	if err := env.Parse(&cfg); err != nil {
 		log.Printf("Failed to load MySQL config: %v", err)
