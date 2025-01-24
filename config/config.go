@@ -18,10 +18,10 @@ type Config struct{
 	Mysql Mysql
 }
 
-func LoadConfig() (*Mysql, error) {
-	var cfg Mysql
-	if err := env.Parse(&cfg); err != nil {
-		log.Printf("Failed to load MySQL config: %v", err)
+func LoadConfig() (*Config, error) {
+	var cfg Config
+	if err := env.Parse(&cfg.Mysql); err != nil {
+		log.Printf("Failed to load config: %v", err)
 		return nil, err
 	}
 	return &cfg, nil
