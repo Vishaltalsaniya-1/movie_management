@@ -31,4 +31,4 @@ Count of movies by genre.
 Top-rated movies (highest rating).
 Recently added movies (based on creation date).
  
-using GoLang and MYSql
+using GoLang + beego orm  framework and MYSql
