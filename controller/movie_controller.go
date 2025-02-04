@@ -6,15 +6,14 @@ import (
 	"movie_management/request"
 	"movie_management/response"
 	"strconv"
-
 	"net/http"
-
 	"github.com/beego/beego/v2/client/orm"
 	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
 )
 
 var validate = validator.New()
+
 
 func CreateMovie(c echo.Context) error {
 	var req request.MovieRequest
@@ -54,9 +53,9 @@ func UpdateMovie(c echo.Context) error {
 
 	updatedMovie, err := managers.UpdateMovie(id, req)
 	if err != nil {
-		
-			return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
-		
+
+		return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
+
 	}
 
 	return c.JSON(http.StatusOK, updatedMovie)
@@ -68,9 +67,9 @@ func DeleteMovie(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response.ErrorResponse{Message: "Invalid ID"})
 	}
 	if err := managers.DeleteMovie(id); err != nil {
-		
-			return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
-		
+
+		return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
+
 	}
 	return c.JSON(http.StatusOK, map[string]string{"message": "Movie successfully deleted"})
 }

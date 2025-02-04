@@ -1,10 +1,12 @@
 package managers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"movie_management/models"
+	"movie_management/producer"
 	"movie_management/request"
 	"movie_management/response"
 	"time"
@@ -31,12 +33,63 @@ func CreateMovie(req request.MovieRequest) (response.MovieResponse, error) {
 		// UpdatedAt: req.UpdatedAt,
 	}
 	log.Println("reqmanagers 2----->")
-	
+
 	_, err = o.Insert(&movie)
 	if err != nil {
 		return response.MovieResponse{}, err
 	}
-	responseMovie := &response.MovieResponse{
+	//rmp := &producer.RMP{}
+	//rmp.Initialize()
+
+	// jsonData, err := json.Marshal(movie)
+	// if err != nil {
+	// 	return response.MovieResponse{}, err
+	// }
+
+	// if err := rmp.Publish(jsonData); err != nil {
+	// 	log.Println("Error while publishing task to RMQ:", err)
+	// 	return response.MovieResponse{}, err
+	// }
+	// consumerInstance := &consumer.Consumer{}
+	// if err := consumerInstance.Initialize(); err != nil {
+	// 	log.Println("Error initializing consumer:", err)
+	// 	return response.MovieResponse{}, err
+	// }
+
+	// go func() {
+	// 	if err := consumerInstance.Consume(context.Background()); err != nil {
+	// 		log.Println("Error consuming tasks:", err)
+	// 	}
+	// }()
+	// producerService, err := producer.NewProducerService()
+	// if err != nil {
+	// 	log.Println("Error initializing producer:", err)
+	// 	return response.MovieResponse{}, err
+	// }
+
+	// if err := rmp.Publish(jsonData); err != nil {
+	// 	log.Println("Error while publishing task to RMQ:", err)
+	// 	return response.MovieResponse{}, err
+	// }
+
+	jsonData, err := json.Marshal(movie)
+	if err != nil {
+		return response.MovieResponse{}, err
+	}
+
+	rmp := producer.NewProducer()
+	producerService := producer.NewProducerService(rmp)
+	if err := producerService.Initialize(); err != nil {
+		log.Println("Failed to initialize producer service:", err)
+		return response.MovieResponse{}, err
+	}
+
+	if err := producerService.Publish(jsonData, "MovieCreatedTask"); err != nil {
+		log.Println("Error publishing movie data:", err)
+		return response.MovieResponse{}, err
+	}
+	
+	return response.MovieResponse{
 		ID:        movie.Id,
 		Title:     movie.Title,
 		Genre:     movie.Genre,
@@ -44,9 +97,7 @@ func CreateMovie(req request.MovieRequest) (response.MovieResponse, error) {
 		Rating:    movie.Rating,
 		CreatedAt: movie.CreatedAt,
 		UpdatedAt: movie.UpdatedAt,
-	}
-
-	return *responseMovie, nil
+	}, nil
 }
 
 func UpdateMovie(id int, req request.MovieRequest) (response.MovieResponse, error) {

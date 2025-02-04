@@ -10,7 +10,7 @@ import (
 
 
 func Connect() error {
-	cfg, err := config.LoadConfig()
+	cfg, err := cnf.LoadConfig()
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %v", err)
 	}
@@ -26,6 +26,6 @@ func Connect() error {
 	return orm.RunSyncdb("default", false, true) 
 }
 
-func GetDB() orm.Ormer {
-	return orm.NewOrm()
-}
+// func GetDB() orm.Ormer {
+// 	return orm.NewOrm()
+// }
