@@ -33,7 +33,7 @@ func (rmp *RMP) Initialize() error {
 		},
 	}
 
-	workerPool, err := workerpool.NewWorkerPoolWithConfig(context.Background(), 10, "testWorker", cnf)
+	workerPool, err := workerpool.NewWorkerPoolWithConfig(context.Background(), 10, "testmovie", cnf)
 	if err != nil {
 		logrus.Fatalf("WorkerPool creation failed: %v", err)
 		return err
@@ -56,7 +56,7 @@ func (rmp *RMP) Publish(Data []byte, taskname string) error {
 	}
 
 	task := &schema.Signature{
-		Name: taskname, 
+		Name: taskname,
 		Args: []schema.Arg{
 			{
 				Type:  "string",

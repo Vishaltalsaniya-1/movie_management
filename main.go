@@ -13,12 +13,6 @@ func main() {
 	if err := db.Connect(); err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
-	// rmp := &producer.RMP{}
-	// rmp.Initialize()
-
-	
-
-	
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -32,4 +26,25 @@ func main() {
 	e.GET("/movies/:id", controller.GetMoviesById)
 
 	e.Logger.Fatal(e.Start(":8080"))
+
+	// if managers.MovieProcessingConfig.EnableProducer {
+	// 	// Producer mode: Initialize and start producer
+	// 	log.Println("Producer is enabled. Initializing producer...")
+	// 	rmp := producer.NewProducer()
+	// 	producerService := producer.NewProducerService(rmp)
+	// 	if err := producerService.Initialize(); err != nil {
+	// 		log.Fatal("Failed to initialize producer service:", err)
+	// 	}
+	// 	// Producer is ready to send tasks
+	// 	log.Println("Producer initialized successfully.")
+	// } else {
+	// 	// Consumer mode: Initialize and start consumer
+	// 	log.Println("Producer is disabled. Initializing consumer...")
+	// 	consumerInstance := consumer.NewConsumer()
+	// 	if err := consumerInstance.Initialize(); err != nil {
+	// 		log.Fatal("Failed to initialize consumer service:", err)
+	// 	}
+	// 	// Consumer is ready to consume tasks
+	// 	log.Println("Consumer initialized successfully.")
+	// }
 }
