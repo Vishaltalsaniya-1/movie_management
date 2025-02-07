@@ -14,7 +14,26 @@ type Mysql struct {
 	DB_PORT     string `env:"DB_PORT" envDefault:"3306"`
 }
 
-type Config struct{
+type ConsumerConfig struct {
+	Url                string `env:"URL" validate:"required" envDefault:"amqp://guest:guest@localhost:5672/"`
+	Exchange           string `env:"EXCHANGE_NAME"  envDefault:"movie_add_exchange"`
+	PrefetchCount      int    `env:"PREFETCH_COUNT"  envDefault:"100"`
+	ConnectionPoolSize int    `env:"CONNECTIONPOOL_SIZE"  envDefault:"10"`
+	QueueName          string `env:"QUEUE_NAME" envDefault:"movie_add"`
+	BindingKeyName     string `env:"BINDING_KEY_NAME" envDefault:"movie_add_bindkey"`
+	DelayedQueueName   string `env:"DELAYED_QUEUE_NAME" envDefault:"movie_add_delay_queue"`
+	QueueTaskName      string `env:"MOVIE_QUEUE_TASK"  envDefault:"moviecreate"`
+}
+
+var Consumerconfig ConsumerConfig
+
+func Loadcosumer() {
+	if err := env.Parse(&Consumerconfig); err != nil {
+		log.Fatalf("Failed to parse environment variables: %v", err)
+	}
+}
+
+type Config struct {
 	Mysql Mysql
 }
 
@@ -26,3 +45,18 @@ func LoadConfig() (*Config, error) {
 	}
 	return &cfg, nil
 }
+
+// type Rabbitmq struct {
+// 	RabbitmqValue string `env:"RabbitmqValue"  envDefault:"TRUE"`
+// }
+
+// func RabbitmqMovie() (*Rabbitmq, error) {
+// 	var RabbitmqConfig Rabbitmq
+
+// 	if err := env.Parse(&RabbitmqConfig); err != nil {
+// 		log.Println("failed to Rabbitmq", err)
+
+// 	}
+// 	return &RabbitmqConfig, nil
+
+// }

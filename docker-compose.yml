@@ -4,7 +4,7 @@ services:
   mysql:
     image: mysql:8.0.36
     ports:
-      - "3306:3306"
+      - "3306:3306" 
     environment:
       MYSQL_ROOT_PASSWORD: Root
       MYSQL_DATABASE: movies
@@ -13,6 +13,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password
+    
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -22,9 +23,10 @@ services:
     #   RABBITMQ_DEFAULT_USER: admin
     #   RABBITMQ_DEFAULT_PASS: guest
     volumes:
-      - rabbitmq_data:/var/lib/rabbitmq  
+      - rabbitmq_data:/var/lib/rabbitmq 
+    
   
 volumes:
   mysql_data:  
   rabbitmq_data: 
-    driver: local
+    # driver: local

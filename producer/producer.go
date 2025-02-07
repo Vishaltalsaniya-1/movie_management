@@ -3,6 +3,7 @@ package producer
 import (
 	"context"
 	"errors"
+	cnf "movie_management/config"
 
 	"github.com/sirupsen/logrus"
 	"github.com/surendratiwari3/paota/config"
@@ -19,17 +20,20 @@ func NewProducer() ProducerInterface {
 }
 
 func (rmp *RMP) Initialize() error {
+	// cnf.Loadcosumer()
+
+	consumerConfig := cnf.Consumerconfig
 	cnf := config.Config{
 		Broker:        "amqp",
-		TaskQueueName: "movie_add",
+		TaskQueueName: consumerConfig.QueueTaskName,
 		AMQP: &config.AMQPConfig{
-			Url:                "amqp://guest:guest@localhost:5672/",
-			Exchange:           "movie_add_exchange",
+			Url:                consumerConfig.Url,
+			Exchange:           consumerConfig.Exchange,
 			ExchangeType:       "direct",
-			BindingKey:         "movie_add_binding_key",
-			PrefetchCount:      100,
-			ConnectionPoolSize: 10,
-			DelayedQueue:       "movie_add_delay_test",
+			BindingKey:         consumerConfig.BindingKeyName,
+			PrefetchCount:      consumerConfig.PrefetchCount,
+			ConnectionPoolSize: consumerConfig.ConnectionPoolSize,
+			DelayedQueue:       consumerConfig.DelayedQueueName,
 		},
 	}
 
@@ -80,37 +84,7 @@ func (rmp *RMP) Publish(Data []byte, taskname string) error {
 	return nil
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // package producer
-
 
 // import (
 // 	"context"
