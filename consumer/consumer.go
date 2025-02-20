@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
+	cnf "movie_management/config"
 	"movie_management/models"
 
+	"github.com/beego/beego/v2/client/orm"
 	"github.com/sirupsen/logrus"
 	"github.com/surendratiwari3/paota/config"
 	"github.com/surendratiwari3/paota/schema"
@@ -21,17 +24,19 @@ func NewConsumer() *Consumer {
 }
 
 func (c *Consumer) Initialize() error {
+	consumerConfig := cnf.Consumerconfig
+
 	cnf := config.Config{
 		Broker:        "amqp",
-		TaskQueueName: "movie_add",
+		TaskQueueName: consumerConfig.QueueTaskName,
 		AMQP: &config.AMQPConfig{
-			Url:                "amqp://guest:guest@localhost:5672/",
-			Exchange:           "movie_add_exchange",
+			Url:                consumerConfig.Url,
+			Exchange:           consumerConfig.Exchange,
 			ExchangeType:       "direct",
-			BindingKey:         "movie_add_binding_key",
-			PrefetchCount:      100,
-			ConnectionPoolSize: 10,
-			DelayedQueue:       "movie_add_delay_test",
+			BindingKey:         consumerConfig.BindingKeyName,
+			PrefetchCount:      consumerConfig.PrefetchCount,
+			ConnectionPoolSize: consumerConfig.ConnectionPoolSize,
+			DelayedQueue:       consumerConfig.DelayedQueueName,
 		},
 	}
 
@@ -42,14 +47,13 @@ func (c *Consumer) Initialize() error {
 	}
 
 	c.WorkerPool = &workerPool
-
 	if c.WorkerPool == nil {
 		logrus.Error("WorkerPool is nil after initialization")
 		return errors.New("failed to initialize worker pool")
 	}
 
 	regTasks := map[string]interface{}{
-		"MovieCreatedTask": c.Print,
+		consumerConfig.QueueTaskName: c.ProcessTask,
 	}
 	if err := workerPool.RegisterTasks(regTasks); err != nil {
 		logrus.Errorf("Error registering tasks: %v", err)
@@ -63,81 +67,120 @@ func (c *Consumer) Initialize() error {
 
 	logrus.Info("WorkerPool consumer initialized and started successfully")
 	return nil
-
 }
 
-func (c *Consumer) Consume(Data []byte, taskname string) error {
-	if c.WorkerPool == nil {
-		return errors.New("worker pool is not initialized")
-	}
+func (c *Consumer) ProcessTask(arg *schema.Signature) error {
 
-	logrus.Info("Starting to consume tasks...")
+	log.Println("Received a new task to process...")
 
-	task := &schema.Signature{
-		Name: "MovieCreatedTask",
-		Args: []schema.Arg{
-			{
-				Type:  "string",
-				Value: string(Data),
-			},
-		},
-		RetryCount:                  10,
-		RoutingKey:                  "movie_add_binding_key",
-		IgnoreWhenTaskNotRegistered: true,
-	}
-
-	state, err := (*c.WorkerPool).SendTaskWithContext(context.Background(), task)
-	if err != nil {
-		logrus.Errorf("Error consuming task: %v", err)
-		return err
-	}
-
-	logrus.Infof("Task sent successfully. State: %+v", state)
-	return nil
-}
-
-func (c *Consumer) Print(arg *schema.Signature) error {
 	if len(arg.Args) == 0 {
-		logrus.Info("No arguments found in the task")
+		logrus.Warn("No arguments received in the task")
 		return nil
 	}
+
 	for _, argItem := range arg.Args {
-		logrus.Infof("Task received - Arg Type: %s, Arg Value: %v", argItem.Type, argItem.Value)
+		logrus.Infof("Processing task - Arg Type: %s, Arg Value: %v", argItem.Type, argItem.Value)
 
 		argStr, ok := argItem.Value.(string)
 		if !ok {
-			logrus.Errorf("Unexpected argument type. Expected string, got: %T", argItem.Value)
+			logrus.Error("Received argument is not a string")
 			return errors.New("invalid argument type")
 		}
 
+		// var user models.Movie
+		// logrus.Infof("Raw task argument: %s", argStr)
+		// if err := json.Unmarshal([]byte(argStr), &user); err != nil {
+		// 	logrus.Errorf("Error decoding user data: %v", err)
+		// 	return err
+		// }
+		// logrus.Infof("Decoded User: %+v", user)
 		var movie models.Movie
 		if err := json.Unmarshal([]byte(argStr), &movie); err != nil {
-			logrus.Errorf("Error unmarshalling movie data: %v", err)
+			logrus.Errorf("Error decoding movie data: %v", err)
 			return err
 		}
-		logrus.Infof("Received movie: %+v", movie)
-		    
+
+		o := orm.NewOrm()
+		if o == nil {
+			logrus.Error("Database connection is nil")
+			return errors.New("database connection not established")
+		}
+
+		if _, err := o.Insert(&movie); err != nil {
+			logrus.Errorf("Database insertion failed: %v", err)
+			return err
+		}
+
+		logrus.Info("User data successfully inserted into the database.")
 	}
 
 	return nil
 }
 
+// func (c *Consumer) Consume(data []byte, taskName string) error {
+// 	if c.WorkerPool == nil {
+// 		logrus.Error("Worker pool is not initialized")
+// 		return errors.New("worker pool is not initialized")
+// 	}
 
-	// for _, argItem := range arg.Args {
-	// 	logrus.Infof("Task received - Arg Type: %s, Arg Value: %v", argItem.Type, argItem.Value)
+// 	task := &schema.Signature{
+// 		Name: taskName,
+// 		Args: []schema.Arg{
+// 			{
+// 				Name:  taskName,
+// 				Type:  "string",
+// 				Value: string(data),
+// 			},
+// 		},
+// 		RetryCount:                  10,
+// 		RoutingKey:                  cnf.Consumerconfig.BindingKeyName,
+// 		IgnoreWhenTaskNotRegistered: true,
+// 	}
 
-	// 	var taskData map[string]interface{}
-	// 	if err := json.Unmarshal([]byte(argItem.Value.(string)), &taskData); err != nil {
-	// 		logrus.Errorf("Error unmarshalling task data: %v", err)
-	// 		return err
-	// 	}
+// 	state, err := (*c.WorkerPool).SendTaskWithContext(context.Background(), task)
+// 	if err != nil {
+// 		logrus.Errorf("Error consuming task: %v", err)
+// 		return err
+// 	}
 
-	// 	logrus.Infof("Processed task with data: %+v", taskData)
-	// }
-	
+// 	logrus.Infof("Task sent successfully. State: %+v", state)
+// 	return nil
+// }
 
-// Insert into MySQL using GORM
-// if err := db.DB.Create(&movie).Error; err != nil {
-// 	logrus.Errorf("Error inserting movie into database: %v", err)
-// 	return err
+// func (c *Consumer) Print(arg *schema.Signature) error {
+// 	if len(arg.Args) == 0 {
+// 		logrus.Warn("No arguments received in the task")
+// 		return nil
+// 	}
+
+// 	for _, argItem := range arg.Args {
+// 		logrus.Infof("Processing task - Arg Type: %s, Arg Value: %v", argItem.Type, argItem.Value)
+
+// 		argStr, ok := argItem.Value.(string)
+// 		if !ok {
+// 			logrus.Error("Received argument is not a string")
+// 			return errors.New("invalid argument type")
+// 		}
+
+// 		var movie models.Movie
+// 		if err := json.Unmarshal([]byte(argStr), &movie); err != nil {
+// 			logrus.Errorf("Error decoding movie data: %v", err)
+// 			return err
+// 		}
+
+// 		o := orm.NewOrm()
+// 		if o == nil {
+// 			logrus.Error("Database connection is nil")
+// 			return errors.New("database connection not established")
+// 		}
+
+// 		if _, err := o.Insert(&movie); err != nil {
+// 			logrus.Errorf("Database insertion failed: %v", err)
+// 			return err
+// 		}
+
+// 		logrus.Info("Movie successfully inserted into the database.")
+// 	}
+
+// 	return nil
 // }

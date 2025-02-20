@@ -4,6 +4,7 @@ go 1.23
 
 require (
 	github.com/beego/beego/v2 v2.3.4
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/surendratiwari3/paota v1.0.0
@@ -43,7 +44,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/crypto v0.32.0
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 	golang.org/x/text v0.21.0 // indirect

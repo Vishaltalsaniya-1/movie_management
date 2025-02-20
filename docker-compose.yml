@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: Root
       MYSQL_DATABASE: movies
       MYSQL_USER: vishal
-      MYSQL_PASSWORD: Vishal@1234
+      MYSQL_PASSWORD: Vishal@123
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password
@@ -24,9 +24,19 @@ services:
     #   RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq 
+  phpmyadmin:
+    image: phpmyadmin:5.2.1
+    links:
+      - mysql
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: Vishal@123
     
   
 volumes:
   mysql_data:  
-  rabbitmq_data: 
+  rabbitmq_data:        
     # driver: local

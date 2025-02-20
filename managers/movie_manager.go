@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"movie_management/consumer"
 	"movie_management/models"
 	"movie_management/producer"
 	"movie_management/request"
@@ -14,12 +13,12 @@ import (
 
 	"github.com/beego/beego/v2/client/orm"
 )
-type MovieProcessingConfig struct {
-	EnableProducer bool
-}
 
-var movieConfig = MovieProcessingConfig{EnableProducer: false} 
+// type MovieProcessingConfig struct {
+// 	EnableProducer bool
+// }
 
+// var movieConfig = MovieProcessingConfig{EnableProducer: false}
 
 func CreateMovie(req request.MovieRequest) (response.MovieResponse, error) {
 	o := orm.NewOrm()
@@ -41,44 +40,30 @@ func CreateMovie(req request.MovieRequest) (response.MovieResponse, error) {
 	}
 	log.Println("reqmanagers 2----->")
 
-	_, err = o.Insert(&movie)
-	if err != nil {
-		return response.MovieResponse{}, err
-	}
+			// _, err = o.Insert(&movie)
+			// if err != nil {
+			// 	return response.MovieResponse{}, err
+			// }
 
 	jsonData, err := json.Marshal(movie)
 	if err != nil {
 		return response.MovieResponse{}, err
 	}
 
-	if movieConfig.EnableProducer {
-		log.Println("Producer is enabled. Publishing movie data...")
-
-		rmp := producer.NewProducer()
-		producerService := producer.NewProducerService(rmp)
-		if err := producerService.Initialize(); err != nil {
-			log.Println("Failed to initialize producer service:", err)
-			return response.MovieResponse{}, err
-		}
-
-		if err := producerService.Publish(jsonData, "MovieCreatedTask"); err != nil {
-			log.Println("Error publishing movie data:", err)
-			return response.MovieResponse{}, err
-		}
-	} else {
-		consumerInstance := consumer.NewConsumer()
-	if err := consumerInstance.Initialize(); err != nil {
-		log.Println("Failed to initialize consumer service:", err)
+	
+	rmp := producer.NewProducer()
+	producerService := producer.NewProducerService(rmp)
+	if err := producerService.Initialize(); err != nil {
+		log.Println("Failed to initialize producer service:", err)
 		return response.MovieResponse{}, err
 	}
 
-	if err := consumerInstance.Consume(jsonData,"MovieCreatedTask"); err != nil {
-		log.Println("Error consuming task:", err)
-		return response.MovieResponse{}, nil
-	}
-		log.Println("Producer is disabled. Skipping message publishing.")
+	if err := producerService.Publish(jsonData); err != nil {
+		log.Println("Error publishing movie data:", err)
+		return response.MovieResponse{}, err
 	}
 	
+
 	return response.MovieResponse{
 		ID:        movie.Id,
 		Title:     movie.Title,

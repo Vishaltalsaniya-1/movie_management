@@ -17,10 +17,9 @@ type RMP struct {
 
 func NewProducer() ProducerInterface {
 	return &RMP{}
-}
+}	
 
 func (rmp *RMP) Initialize() error {
-	// cnf.Loadcosumer()
 
 	consumerConfig := cnf.Consumerconfig
 	cnf := config.Config{
@@ -54,13 +53,15 @@ func (rmp *RMP) Initialize() error {
 	return nil
 }
 
-func (rmp *RMP) Publish(Data []byte, taskname string) error {
+func (rmp *RMP) Publish(Data []byte) error {
+	consumerConfig := cnf.Consumerconfig
+
 	if rmp.WorkerPool == nil {
 		return errors.New("worker pool is not initialized")
 	}
 
 	task := &schema.Signature{
-		Name: taskname,
+		Name: consumerConfig.QueueTaskName,
 		Args: []schema.Arg{
 			{
 				Type:  "string",

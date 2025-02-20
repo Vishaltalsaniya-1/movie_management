@@ -5,7 +5,6 @@ type MovieRequest struct {
 	Genre  string  `json:"genre" validate:"required"`
 	Year   int     `json:"year"`
 	Rating float64 `json:"rating" validate:"required,gte=1,lte=5"`
-	
 }
 
 type Req struct {
@@ -16,3 +15,13 @@ type Req struct {
 	Filter   string `json:"filter" query:"filter"`
 	Year     int    `json:"year" query:"year"`
 }
+
+// type Auth struct {
+// 	Username string `json:"username" validate:"required"`
+// 	Email    string `json:"email" validate:"required"`
+// 	Password string `json:"password"`
+// }
+
+// func init() {
+// 	orm.RegisterModel(new(AuthRequest))
+// }

@@ -18,10 +18,10 @@ func (ps *ProducerService) Initialize() error {
 	return ps.producer.Initialize()
 }
 
-func (ps *ProducerService) Publish(message []byte, taskName string) error {
+func (ps *ProducerService) Publish(message []byte) error {
 	if ps.producer == nil {
 		log.Println("Producer instance is nil")
 		return nil
 	}
-	return ps.producer.Publish(message, taskName)
+	return ps.producer.Publish(message)
 }

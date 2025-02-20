@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/beego/beego/v2/client/orm"
 	"time"
+
+	"github.com/beego/beego/v2/client/orm"
 )
 
 type Movie struct {
@@ -18,3 +19,30 @@ type Movie struct {
 func init() {
 	orm.RegisterModel(new(Movie))
 }
+
+type AuthRequest struct {
+	Username string `json:"username" orm:"unique"`
+	Email    string `json:"email" orm:"unique"`
+	Password string `json:"password"`
+}
+
+func init() {
+	orm.RegisterModel(new(AuthRequest))
+}
+
+// func (user *AuthRequest) HashPassword(password string) error {
+// 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	user.Password = string(bytes)
+// 	return nil
+// }
+
+// func (user *AuthRequest) CheckPassword(providedPassword string) error {
+// 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(providedPassword))
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }

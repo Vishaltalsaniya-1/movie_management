@@ -2,12 +2,11 @@ package db
 
 import (
 	"fmt"
-	"movie_management/config"
+	cnf "movie_management/config"
 
 	"github.com/beego/beego/v2/client/orm"
-	_ "github.com/go-sql-driver/mysql" 
+	_ "github.com/go-sql-driver/mysql"
 )
-
 
 func Connect() error {
 	cfg, err := cnf.LoadConfig()
@@ -21,9 +20,10 @@ func Connect() error {
 	if err := orm.RegisterDataBase("default", "mysql", connectionString); err != nil {
 		return fmt.Errorf("failed to register database: %v", err)
 	}
+	// orm.RegisterModel(new(models.Movie))
 
-	orm.Debug = true 
-	return orm.RunSyncdb("default", false, true) 
+	orm.Debug = true
+	return orm.RunSyncdb("default", false, true)
 }
 
 // func GetDB() orm.Ormer {

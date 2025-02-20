@@ -16,6 +16,11 @@ var validate = validator.New()
 
 
 func CreateMovie(c echo.Context) error {
+	userEmail, ok := c.Get("user_email").(string)
+	if !ok || userEmail == "" {
+		return c.JSON(http.StatusUnauthorized, response.ErrorResponse{Message: "Unauthorized"})
+	}
+
 	var req request.MovieRequest
 
 	if err := c.Bind(&req); err != nil {
@@ -69,7 +74,7 @@ func DeleteMovie(c echo.Context) error {
 	if err := managers.DeleteMovie(id); err != nil {
 
 		return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
-
+ 
 	}
 	return c.JSON(http.StatusOK, map[string]string{"message": "Movie successfully deleted"})
 }

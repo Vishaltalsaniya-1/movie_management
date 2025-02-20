@@ -9,7 +9,7 @@ import (
 type Mysql struct {
 	DB_HOST     string `env:"DB_HOST" envDefault:"localhost"`
 	DB_USER     string `env:"DB_USER" envDefault:"vishal"`
-	DB_PASSWORD string `env:"DB_PASSWORD" envDefault:"Vishal@1234"`
+	DB_PASSWORD string `env:"DB_PASSWORD" envDefault:"Vishal@123"`
 	DB_NAME     string `env:"DB_NAME" envDefault:"movies"`
 	DB_PORT     string `env:"DB_PORT" envDefault:"3306"`
 }
@@ -17,12 +17,15 @@ type Mysql struct {
 type ConsumerConfig struct {
 	Url                string `env:"URL" validate:"required" envDefault:"amqp://guest:guest@localhost:5672/"`
 	Exchange           string `env:"EXCHANGE_NAME"  envDefault:"movie_add_exchange"`
+	ExchangeType       string `env:"EXCHANGE_TYPE"  envDefault:"direct"`
 	PrefetchCount      int    `env:"PREFETCH_COUNT"  envDefault:"100"`
 	ConnectionPoolSize int    `env:"CONNECTIONPOOL_SIZE"  envDefault:"10"`
 	QueueName          string `env:"QUEUE_NAME" envDefault:"movie_add"`
 	BindingKeyName     string `env:"BINDING_KEY_NAME" envDefault:"movie_add_bindkey"`
 	DelayedQueueName   string `env:"DELAYED_QUEUE_NAME" envDefault:"movie_add_delay_queue"`
 	QueueTaskName      string `env:"MOVIE_QUEUE_TASK"  envDefault:"moviecreate"`
+	RunConsumer        bool   `env:"RUN_CONSUMER" envDefault:"false"`
+	RunProducer        bool   `env:"RUN_PRODUCER" envDefault:"true"`
 }
 
 var Consumerconfig ConsumerConfig
