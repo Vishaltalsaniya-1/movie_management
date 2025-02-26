@@ -23,7 +23,7 @@ func Register(c echo.Context) error {
 	// }
 	err := managers.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "User registration failed"})
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "User registration failed"})
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "User registered successfully"})

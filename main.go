@@ -40,6 +40,8 @@ func main() {
 	if err := db.Connect(); err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
+	// utils.LoadSecretKey()
+
 	cnf.Loadcosumer()
 	if cnf.Consumerconfig.RunConsumer {
 		go StartConsumerService()

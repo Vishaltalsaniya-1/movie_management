@@ -1,6 +1,7 @@
 package managers
 
 import (
+	"fmt"
 	"movie_management/models"
 	"movie_management/utils"
 
@@ -10,6 +11,14 @@ import (
 
 func RegisterUser(username, email, password string) error {
 	o := orm.NewOrm()
+
+	var existingUser models.AuthRequest
+	err := o.QueryTable(&models.AuthRequest{}).Filter("email", email).One(&existingUser)
+	if err == nil {
+		return fmt.Errorf("user with email'%s' already exists", email)
+	} else if err != orm.ErrNoRows {
+		return err
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {

@@ -23,8 +23,8 @@ type ConsumerConfig struct {
 	QueueName          string `env:"QUEUE_NAME" envDefault:"movie_add"`
 	BindingKeyName     string `env:"BINDING_KEY_NAME" envDefault:"movie_add_bindkey"`
 	DelayedQueueName   string `env:"DELAYED_QUEUE_NAME" envDefault:"movie_add_delay_queue"`
-	QueueTaskName      string `env:"MOVIE_QUEUE_TASK"  envDefault:"moviecreate"`
-	RunConsumer        bool   `env:"RUN_CONSUMER" envDefault:"false"`
+	QueueTaskName      string `env:"MOVIE_QUEUE_TASK"  envDefault:"MovieCreatedTask"`
+	RunConsumer        bool   `env:"RUN_CONSUMER" envDefault:"true"`
 	RunProducer        bool   `env:"RUN_PRODUCER" envDefault:"true"`
 }
 
@@ -37,7 +37,9 @@ func Loadcosumer() {
 }
 
 type Config struct {
-	Mysql Mysql
+	Mysql     Mysql
+	JwtSecret string `env:"JWT_SECRET_KEY" envDefault:"vishal"` // Secret key for JWT
+
 }
 
 func LoadConfig() (*Config, error) {

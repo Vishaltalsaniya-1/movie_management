@@ -76,7 +76,7 @@ func DeleteMovie(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, response.ErrorResponse{Message: "Movie not found"})
  
 	}
-	return c.JSON(http.StatusOK, map[string]string{"message": "Movie successfully deleted"})
+	return c.JSON(http.StatusNoContent, map[string]string{"message": "Movie successfully deleted"})
 }
 
 func ListMovies(c echo.Context) error {

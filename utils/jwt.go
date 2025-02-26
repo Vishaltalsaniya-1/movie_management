@@ -7,7 +7,17 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-var jwtKey = []byte("supersecretkey")
+var jwtKey = []byte("vishal")
+
+// var jwtKey string
+
+// func LoadSecretKey() {
+// 	cfg, err := cnf.LoadConfig()
+// 	if err != nil {
+// 		log.Fatalf("Failed to load config: %v", err)
+// 	}
+// 	jwtKey = cfg.JwtSecret
+// }
 
 type JWTClaim struct {
 	Username string `json:"username"`

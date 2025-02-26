@@ -36,21 +36,20 @@ func CreateMovie(req request.MovieRequest) (response.MovieResponse, error) {
 		Year:      req.Year,
 		Rating:    req.Rating,
 		CreatedAt: time.Now(),
-		// UpdatedAt: req.UpdatedAt,
+		UpdatedAt: time.Now(),
 	}
 	log.Println("reqmanagers 2----->")
 
-			// _, err = o.Insert(&movie)
-			// if err != nil {
-			// 	return response.MovieResponse{}, err
-			// }
+	// _, err = o.Insert(&movie)
+	// if err != nil {
+	// 	return response.MovieResponse{}, err
+	// }
 
 	jsonData, err := json.Marshal(movie)
 	if err != nil {
 		return response.MovieResponse{}, err
 	}
 
-	
 	rmp := producer.NewProducer()
 	producerService := producer.NewProducerService(rmp)
 	if err := producerService.Initialize(); err != nil {
@@ -62,7 +61,6 @@ func CreateMovie(req request.MovieRequest) (response.MovieResponse, error) {
 		log.Println("Error publishing movie data:", err)
 		return response.MovieResponse{}, err
 	}
-	
 
 	return response.MovieResponse{
 		ID:        movie.Id,
